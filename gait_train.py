@@ -74,7 +74,7 @@ def main():
         args.dataset,
         motion_clean,
         motion_w_o,
-        args.input_motion_length,
+        input_motion_length=args.input_motion_length,
     )
 
     dataloader = get_dataloader(
