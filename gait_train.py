@@ -76,6 +76,7 @@ def main():
         motion_w_o,
         input_motion_length=args.input_motion_length,
     )
+    print("datasetsize:", len(dataset))
 
     dataloader = get_dataloader(
         dataset, "train", batch_size=args.batch_size, num_workers=args.num_workers
