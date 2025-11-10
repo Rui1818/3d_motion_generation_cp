@@ -10,6 +10,7 @@ from aitviewer.renderables.skeletons import Skeletons
 import argparse
 
 
+
 class BODY25Skeletons(Skeletons):
     SKELETON = np.asarray([
         (-1, 0), (0, 8), (9, 10), (10, 11), (8, 9), (8, 12),
@@ -23,14 +24,30 @@ class BODY25Skeletons(Skeletons):
         kwargs['color'] = (0.5, 0.0, 0.0, 1.0)
         super().__init__(joints, __class__.SKELETON, **kwargs)
 
+def subtract_root(data):
+    #only after frames have been cut
+    root = (data[0,8,:]+data[0, 9, :])/2
+    return data - root
+
+def drop_duplicate_frames(data):
+    first_row = data[:, 0:1, :]  # Shape: (frames, 1, 5)
+    all_rows_same = np.all(data == first_row, axis=(1,2))
+
+    mask = ~all_rows_same
+    return data[mask]
+
 def add_keypoints(path, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
     # Load keypoints
     keypoints = np.load(path)
 
-    if keypoints.shape[-1] > 3:
+    if keypoints.shape[-1] > 5:
         keypoints = keypoints.reshape(-1, 24, 3)
+    elif keypoints.shape[-1] == 5:
+        keypoints=drop_duplicate_frames(keypoints)
+        keypoints = keypoints[..., :3]
+        keypoints=subtract_root(keypoints)
 
-    keypoints = keypoints[..., :3]
+    
 
     keypoints_pc = PointClouds(
         keypoints,
@@ -41,14 +58,18 @@ def add_keypoints(path, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
     if keypoints.shape[1]==24:
         keypoints=np.insert(keypoints, 1,0, axis=1)
 
-    skeleton=BODY25Skeletons(keypoints, name='Skeletonkeypoints')
+    skeleton=BODY25Skeletons(keypoints, name=thisname)
     viewer.scene.add(skeleton)
-    viewer.scene.add(keypoints_pc)
+    #viewer.scene.add(keypoints_pc)
     return
 
-def visualize_gait(keypoints_path, smplseq_path=None):
+
+def visualize_gait(keypoints_path, reference_path=None, smplseq_path=None):
     v = Viewer()
     add_keypoints(keypoints_path, v, "my Keypoints")
+
+    if reference_path is not None:
+        add_keypoints(reference_path, v, "reference Keypoints", color=(0.0, 1.0, 0.0, 1))
 
     if smplseq_path is not None:
         data = np.load(smplseq_path)
@@ -104,10 +125,11 @@ if __name__ == "__main__":
     parser.add_argument("--keypointspath", type=str, help="Path to the keypoints file")
     parser.add_argument("--smplseqpath", type=str, default=None, help="Path to the SMPL sequence file (optional)")
     """
-    take="_c2_a5_2"
+    take="_c1_a1"
     root="overfit_training_sample"
     keypoints_path = "generated_motion_c1_a1.npy"
     keypoints_path = os.path.join(root, keypoints_path)
+    reference_path = os.path.join("observations", "753", "vitpose"+take, "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
 
 
-    visualize_gait(keypoints_path)
+    visualize_gait(keypoints_path, reference_path)
