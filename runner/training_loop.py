@@ -106,7 +106,7 @@ class TrainLoop:
         print('Epochs', self.num_epochs)
 
         for epoch in range(self.num_epochs):
-            print(f"Starting epoch {epoch}")
+            print(f"Starting epoch {epoch} / {self.num_epochs}")
             for motion, cond in tqdm(self.data):
                 motion = motion.to(self.device)
                 cond = cond.to(self.device)
