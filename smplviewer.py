@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from aitviewer.configuration import CONFIG as C
 from aitviewer.models.smpl import SMPLLayer
@@ -26,6 +27,9 @@ def add_keypoints(path, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
     # Load keypoints
     keypoints = np.load(path)
 
+    if keypoints.shape[-1] > 3:
+        keypoints = keypoints.reshape(-1, 24, 3)
+
     keypoints = keypoints[..., :3]
 
     keypoints_pc = PointClouds(
@@ -34,8 +38,10 @@ def add_keypoints(path, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
         point_size=3.0,
         color=color
     )
+    if keypoints.shape[1]==24:
+        keypoints=np.insert(keypoints, 1,0, axis=1)
+
     skeleton=BODY25Skeletons(keypoints, name='Skeletonkeypoints')
-    #viewer.scene.add(keypoints_pc)
     viewer.scene.add(skeleton)
     viewer.scene.add(keypoints_pc)
     return
@@ -99,7 +105,9 @@ if __name__ == "__main__":
     parser.add_argument("--smplseqpath", type=str, default=None, help="Path to the SMPL sequence file (optional)")
     """
     take="_c2_a5_2"
-    keypoints_path = "data_example/700/vitpose_c1_a4/vitpose/keypoints_3d/smpl-keypoints-3d_cut.npy"
+    root="overfit_training_sample"
+    keypoints_path = "generated_motion_c1_a1.npy"
+    keypoints_path = os.path.join(root, keypoints_path)
 
 
     visualize_gait(keypoints_path)
