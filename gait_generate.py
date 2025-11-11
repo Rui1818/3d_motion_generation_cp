@@ -135,7 +135,8 @@ def main():
 
     # Create an output directory if it doesn't exist
     if not args.output_dir:
-        args.output_dir = os.path.join(os.path.dirname(args.model_path), "generated_motions")
+        name, _ = os.path.splitext(os.path.basename(args.model_path))
+        args.output_dir = os.path.join(os.path.dirname(args.model_path), "generated_motions"+name)
     
     os.makedirs(args.output_dir, exist_ok=True)
 

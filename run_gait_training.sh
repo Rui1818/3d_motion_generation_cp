@@ -5,7 +5,7 @@
 DATASET_PATH="observations"
 DATASET_NAME="gait"
 BATCH_SIZE=2
-SAVE_INTERVAL=100
+SAVE_INTERVAL=1000
 LOG_INTERVAL=100
 DEVICE=0
 NUM_WORKERS=2
@@ -66,9 +66,10 @@ run_training() {
 #run_training "my_training/config3" 512 8 1e-4 20000 2e-4
 #run_training "my_training/config4" 128 6 1e-4 20000 2e-4
 #run_training "my_training/config5" 256 6 1e-4 20000 2e-4
-#run_training "my_training/config6" 128 8 1e-4 20000 2e-4
-run_training "my_training/config7" 128 8 1e-4 20000 2e-4
-run_training "my_training/config8" 256 8 1e-4 20000 2e-4
+run_training "my_training/config6" 512 8 1e-4 60000 2e-4
+#run_training "my_training/config7" 128 8 1e-4 20000 2e-4
+#run_training "my_training/config8" 256 8 1e-4 60000 2e-4
+run_training "my_training/config9" 256 8 1e-4 60000 2e-4
 
 # Config 4: Add more configs as you like...
 # run_training "my_training/config4_..." ... ... ...
