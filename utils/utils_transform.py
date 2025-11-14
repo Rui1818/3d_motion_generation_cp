@@ -5,8 +5,8 @@
 # Copyright (c) Meta Platforms, Inc. All Rights Reserved
 
 import torch
-from human_body_prior.tools import tgm_conversion as tgm
-from human_body_prior.tools.rotation_tools import aa2matrot, matrot2aa
+import utils.tgm_conversion as tgm
+from utils.rotation_tools import aa2matrot, matrot2aa
 from torch.nn import functional as F
 
 
@@ -44,6 +44,10 @@ def sixd2matrot(pose_6d):
     """
     :param pose_6d: Nx6
     :return: pose_matrot: Nx3x3
+    
+    Note: This is a simplified conversion that assumes the first two columns
+    of the 6D representation are already orthogonal. For converting raw neural
+    network outputs, the `bgs` (Gram-Schmidt) function is more robust.
     """
     rot_vec_1 = pose_6d[:, :3]
     rot_vec_2 = pose_6d[:, 3:6]

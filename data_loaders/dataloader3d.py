@@ -70,7 +70,7 @@ class MotionDataset(Dataset):
         motion_w_o = self.motion_without_orth[idx % len(self.motion_clean)]
         seqlen = motion.shape[0]
         seqlen_wo = motion_w_o.shape[0]
-        random=torch.randint(0, int(seqlen - self.input_motion_length), (1,))[0] if seqlen > self.input_motion_length else 0
+        #random=torch.randint(0, int(seqlen - self.input_motion_length), (1,))[0] if seqlen > self.input_motion_length else 0
         #sequence padding or random cropping to fit input length
         if seqlen <= self.input_motion_length:
             if seqlen > 0:
@@ -79,7 +79,7 @@ class MotionDataset(Dataset):
                 padding = last_frame.repeat(frames_to_add, 1)
                 motion = torch.cat([motion, padding], dim=0)
         else:
-            motion = motion[random : random + self.input_motion_length]
+            motion = motion[0:self.input_motion_length]
 
         if seqlen_wo <= self.input_motion_length:
             if seqlen_wo > 0:
@@ -88,7 +88,7 @@ class MotionDataset(Dataset):
                 padding_wo = last_frame_wo.repeat(frames_to_add, 1)
                 motion_w_o = torch.cat([motion_w_o, padding_wo], dim=0)
         else:
-            motion_w_o = motion_w_o[random : random + self.input_motion_length]
+            motion_w_o = motion_w_o[0:self.input_motion_length]
 
         """
         # Normalization
@@ -101,7 +101,7 @@ class MotionDataset(Dataset):
     
 
 
-def load_data(motion_path, split, **kwargs):
+def load_data(motion_path, split, mode=None,**kwargs):
     """
     Load SMPL keypoint .npy files from a folder into a list of PyTorch tensors.
 
@@ -110,7 +110,7 @@ def load_data(motion_path, split, **kwargs):
         **kwargs: Optional keyword arguments for future extensions.
 
     Returns: 
-        list[torch.Tensor]: A list of tensors, one per file, each of shape (frames, 125, 5).
+        list[torch.Tensor]: A list of tensors, one per file, each of shape (frames, 72).
     """
     if split == "train":
         motion_clean =[]

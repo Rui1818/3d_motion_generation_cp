@@ -5,8 +5,8 @@ import os
 import numpy as np
 import torch
 
-from human_body_prior.body_model.body_model import BodyModel
-from human_body_prior.tools.rotation_tools import aa2matrot, local2global_pose
+from utils.body_model import BodyModel
+from utils.rotation_tools import aa2matrot, local2global_pose
 from tqdm import tqdm
 from utils import utils_transform
 
@@ -80,12 +80,19 @@ def main(args, bm):
                     }
                 )
 
+                # ---> HIGHLIGHT: Full Motion Generation (Ground Truth)
+                # This section creates the target data for the model.
+                # It takes the full-body poses (all 22 joints, 66 parameters) and converts them
+                # from axis-angle to a 6D representation. This is the complete motion the model will learn to predict.
                 output_aa = torch.Tensor(bdata_poses[:, :66]).reshape(-1, 3)
                 output_6d = utils_transform.aa2sixd(output_aa).reshape(
                     bdata_poses.shape[0], -1
                 )
                 rotation_local_full_gt_list = output_6d[1:]
+                # <--- END HIGHLIGHT
 
+                # ---> HIGHLIGHT: Sparse Motion Generation (Input Features)
+                # This section creates the sparse input data, simulating trackers on only the head and hands.
                 rotation_local_matrot = aa2matrot(
                     torch.tensor(bdata_poses).reshape(-1, 3)
                 ).reshape(bdata_poses.shape[0], -1, 9)
@@ -93,11 +100,13 @@ def main(args, bm):
                     rotation_local_matrot, bm.kintree_table[0].long()
                 )  # rotation of joints relative to the origin
 
+                # 1. Get global rotation for head, left hand, and right hand (joints 15, 20, 21)
                 head_rotation_global_matrot = rotation_global_matrot[:, [15], :, :]
 
                 rotation_global_6d = utils_transform.matrot2sixd(
                     rotation_global_matrot.reshape(-1, 3, 3)
                 ).reshape(rotation_global_matrot.shape[0], -1, 6)
+                # Select only the 3 sparse joints
                 input_rotation_global_6d = rotation_global_6d[1:, [15, 20, 21], :]
 
                 rotation_velocity_global_matrot = torch.matmul(
@@ -107,10 +116,12 @@ def main(args, bm):
                 rotation_velocity_global_6d = utils_transform.matrot2sixd(
                     rotation_velocity_global_matrot.reshape(-1, 3, 3)
                 ).reshape(rotation_velocity_global_matrot.shape[0], -1, 6)
+                # 2. Get rotational velocity for the 3 sparse joints
                 input_rotation_velocity_global_6d = rotation_velocity_global_6d[
                     :, [15, 20, 21], :
                 ]
 
+                # 3. Get global position for all joints, then select the 3 sparse ones
                 position_global_full_gt_world = body_pose_world.Jtr[
                     :, :22, :
                 ]  # position of joints relative to the world origin
@@ -129,6 +140,11 @@ def main(args, bm):
 
                 num_frames = position_global_full_gt_world.shape[0] - 1
 
+                # 4. Concatenate all sparse features into a single input tensor:
+                # - Global 6D Rotation (3 joints)
+                # - Global 6D Rotational Velocity (3 joints)
+                # - Global 3D Position (3 joints)
+                # - Global 3D Positional Velocity (3 joints)
                 hmd_position_global_full_gt_list = torch.cat(
                     [
                         input_rotation_global_6d.reshape(num_frames, -1),
@@ -145,6 +161,7 @@ def main(args, bm):
                     ],
                     dim=-1,
                 )
+                # <--- END HIGHLIGHT
 
                 data["rotation_local_full_gt_list"] = rotation_local_full_gt_list
                 data[

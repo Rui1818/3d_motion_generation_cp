@@ -9,6 +9,8 @@ from plyfile import PlyData
 from aitviewer.renderables.skeletons import Skeletons
 import argparse
 
+import torch
+
 
 
 class BODY25Skeletons(Skeletons):
@@ -58,18 +60,21 @@ def add_keypoints(path, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
     if keypoints.shape[1]==24:
         keypoints=np.insert(keypoints, 1,0, axis=1)
 
-    skeleton=BODY25Skeletons(keypoints, name=thisname)
-    viewer.scene.add(skeleton)
-    #viewer.scene.add(keypoints_pc)
+    #skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
+    #viewer.scene.add(skeleton)
+    viewer.scene.add(keypoints_pc)
     return
 
 
-def visualize_gait(keypoints_path, reference_path=None, smplseq_path=None):
+def visualize_gait(keypoints_path, reference_path=None, condition_path=None, smplseq_path=None):
     v = Viewer()
     add_keypoints(keypoints_path, v, "my Keypoints")
 
     if reference_path is not None:
         add_keypoints(reference_path, v, "reference Keypoints", color=(0.0, 1.0, 0.0, 1))
+
+    if condition_path is not None:
+        add_keypoints(condition_path, v, "condition Keypoints", color=(0.0, 0.0, 1.0, 1))
 
     if smplseq_path is not None:
         data = np.load(smplseq_path)
@@ -113,6 +118,84 @@ def visualize_gait(keypoints_path, reference_path=None, smplseq_path=None):
         v.scene.add(smpl_sequence)
 
     v.run()
+
+def visualize_smpl_keypoints(smplkeypoints_path):
+    data = np.load(smplkeypoints_path)
+    
+    # smplx parameters
+    body_pose = data['body_pose']           # (419, 63)
+    print(body_pose.shape)
+    global_orient = data['global_orient']   # (419, 3)
+    betas = data['betas']                   # (419, 11)
+    transl = data['transl']                 # (419, 3)
+    left_hand_pose = data['left_hand_pose'] # (419, 12) - PCA components
+    right_hand_pose = data['right_hand_pose'] # (419, 12) - PCA components
+
+    print(f"Loaded sequence with {body_pose.shape[0]} frames")
+    
+    # Create SMPL-X layer with PCA hand pose support
+    smpl_layer = SMPLLayer(
+        model_type="smplx", 
+        gender="neutral", 
+        device=C.device,
+        age="kid",
+        kid_template_path=r"C:\Users\Rui\Vorlesungskript\Master\Thesis\test\smpl_models\smplx\smplx_kid_template.npy",
+        use_pca=True, 
+        num_pca_comps=12,  
+        flat_hand_mean=False
+    )
+    print("num_betas:", smpl_layer.num_betas)
+    smpl_layer.num_betas += 1
+
+    num_frames = body_pose.shape[0]
+    all_joints = []
+    
+    print(f"Extracting joints for {num_frames} frames...")
+    
+    # Convert numpy arrays to torch tensors
+    body_pose_torch = torch.from_numpy(body_pose).float().to(C.device)
+    global_orient_torch = torch.from_numpy(global_orient).float().to(C.device)
+    betas_torch = torch.from_numpy(betas).float().to(C.device)
+    transl_torch = torch.from_numpy(transl).float().to(C.device)
+    left_hand_pose_torch = torch.from_numpy(left_hand_pose).float().to(C.device)
+    right_hand_pose_torch = torch.from_numpy(right_hand_pose).float().to(C.device)
+
+    for i in range(num_frames):
+        # Forward pass through SMPL layer to get joints
+        # The layer returns a tuple: (vertices, joints)
+        output = smpl_layer(
+            poses_body=body_pose_torch[i:i+1],
+            poses_root=global_orient_torch[i:i+1],
+            betas=betas_torch[i:i+1],
+            trans=transl_torch[i:i+1],
+            poses_left_hand=left_hand_pose_torch[i:i+1],
+            poses_right_hand=right_hand_pose_torch[i:i+1]
+        )
+        # Unpack the output tuple - joints are the second element
+        vertices, joints = output
+        joints_np = joints.cpu().numpy()  # Shape: (1, num_joints, 3)
+        all_joints.append(joints_np[0])
+    
+    all_joints = np.array(all_joints)  # Shape: (num_frames, num_joints, 3)
+    right=all_joints[:,43,:]
+    left=all_joints[:,29,:]
+    all_joints=all_joints[:,:22,:]
+    all_joints=np.concatenate((all_joints,right[:,np.newaxis,:]),axis=1)
+    all_joints=np.concatenate((all_joints,left[:,np.newaxis,:]),axis=1)
+    
+    #indx 43
+    print(f"Extracted joints shape: {all_joints.shape}")
+    
+    # Create point cloud from SMPL joints
+    smpl_joints_pc = PointClouds(
+        all_joints,
+        name="SMPL Joints",
+        point_size=10.0,
+        color=(0.0, 0.0, 0.0, 1.0)  # Black color
+    )
+    v=Viewer()
+    v.scene.add(smpl_joints_pc)
+    v.run()
     
 
 if __name__ == "__main__":
@@ -125,11 +208,14 @@ if __name__ == "__main__":
     parser.add_argument("--keypointspath", type=str, help="Path to the keypoints file")
     parser.add_argument("--smplseqpath", type=str, default=None, help="Path to the SMPL sequence file (optional)")
     """
-    take="_c1_a1"
     root="overfit_training_sample"
+    model="model000040005"
     keypoints_path = "generated_motion_c1_a1.npy"
-    keypoints_path = os.path.join(root, keypoints_path)
-    reference_path = os.path.join("observations", "753", "vitpose"+take, "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
-
-
-    visualize_gait(keypoints_path, reference_path)
+    #keypoints_path = os.path.join(root, "config8","generated_motions", keypoints_path)
+    keypoints_path = os.path.join(root, "config6","generated_motions"+model, keypoints_path)
+    keypoints_path="test/reconstructed_keypoints_3d.npy"
+    reference_path = os.path.join("observations", "753", "vitpose_c1_a1", "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
+    condition_path = os.path.join("observations", "753", "vitpose_c2_a1", "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
+    smplseq= "0\\fit-smplx\\smplx-params.npz"
+    visualize_gait(keypoints_path, reference_path=None, condition_path=None, smplseq_path=smplseq)
+    #visualize_smpl_keypoints(smplseq)
