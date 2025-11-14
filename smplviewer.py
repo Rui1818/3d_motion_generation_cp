@@ -147,6 +147,17 @@ def visualize_smpl_keypoints(smplkeypoints_path):
     print("num_betas:", smpl_layer.num_betas)
     smpl_layer.num_betas += 1
 
+    smpl_sequence = SMPLSequence(
+        poses_body=body_pose,
+        poses_root=global_orient,
+        betas=betas,
+        trans=transl,
+        poses_left_hand=left_hand_pose,
+        poses_right_hand=right_hand_pose,
+        smpl_layer=smpl_layer,
+        name="SMPL-X Sequence",
+    )
+
     num_frames = body_pose.shape[0]
     all_joints = []
     
@@ -194,6 +205,7 @@ def visualize_smpl_keypoints(smplkeypoints_path):
         color=(0.0, 0.0, 0.0, 1.0)  # Black color
     )
     v=Viewer()
+    v.scene.add(smpl_sequence)
     v.scene.add(smpl_joints_pc)
     v.run()
     

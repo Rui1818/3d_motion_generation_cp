@@ -1,29 +1,23 @@
-import argparse
 import os
 import numpy as np
 import torch
-import utils.utils_transform as utils_transform
+from aitviewer.configuration import CONFIG as C
+from aitviewer.models.smpl import SMPLLayer
+from aitviewer.renderables.smpl import SMPLSequence
+from utils import utils_transform
 from utils.body_model import BodyModel as BM
-
-
 
 class BodyModel(torch.nn.Module):
     """
     Wrapper for the human_body_prior BodyModel to make it a simple Module.
     """
-    def __init__(self, support_dir, device, kid_template_path=None):
+    def __init__(self, support_dir, device):
         super().__init__()
         # Use a generic male model, as is common in this project
         bm_fname = os.path.join(support_dir, "smplx/SMPLX_MALE.npz")
         if not os.path.exists(bm_fname):
             raise FileNotFoundError(f"SMPL-X model not found at: {bm_fname}")
-
         num_betas = 11
-        self.v_template = None
-        if kid_template_path:
-            self.v_template = torch.from_numpy(np.load(kid_template_path)).float().to(device)
-            num_betas = 10 # Kid template uses 10 betas
-
         body_model = BM(
             bm_fname=bm_fname,
             num_betas=num_betas,
@@ -33,9 +27,8 @@ class BodyModel(torch.nn.Module):
     def forward(self, body_params):
         with torch.no_grad():
             # Pass the v_template during the forward call if it exists
-            if self.v_template is not None:
-                body_params['v_template'] = self.v_template
             return self.body_model(**body_params)
+
 
 def smplx_to_6d(input_path, output_path):
     data = np.load(input_path)
@@ -69,6 +62,7 @@ def smplx_to_6d(input_path, output_path):
     print(f"Saved result to: {output_path}")
 
 def sixd_to_smplx(input_path, output_path, smplmodel_path, kid_template_path=None):
+    C.smplx_models = "smpl_models/"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # 1. Load the 6D rotation and translation data from the .npz file
     data = np.load(input_path)
@@ -88,15 +82,57 @@ def sixd_to_smplx(input_path, output_path, smplmodel_path, kid_template_path=Non
         'root_orient': motion_aa_flat[:, :3],    # First 3 values are the root rotation
         'pose_body': motion_aa_flat[:, 3:66],  # The rest are the body joint rotations
         'trans': transl, # Use the loaded translation
-        'betas': betas[:, :10] if kid_template_path else betas
+        'betas': betas
     }
     # 4. Instantiate body model and perform forward kinematics
     print("Performing forward kinematics to calculate joint positions...")
-    body_model = BodyModel(smplmodel_path, device=device, kid_template_path=kid_template_path)
-    body_pose = body_model(body_params)
+    if kid_template_path is None:
+        print("Using generic SMPL-X model for forward kinematics.")
+        body_model = BodyModel(smplmodel_path, device=device)
+        body_pose = body_model(body_params)
+        keypoints_3d = body_pose.Jtr[:, :22, :].cpu().numpy()
+    else:
+        print("Using kid template for SMPL-X model forward kinematics.")
+        smpl_layer = SMPLLayer(
+            model_type="smplx", 
+            gender="neutral", 
+            device=C.device,
+            age="kid",
+            kid_template_path=r"C:\Users\Rui\Vorlesungskript\Master\Thesis\test\smpl_models\smplx\smplx_kid_template.npy",
+            use_pca=True, 
+            num_pca_comps=12,  
+            flat_hand_mean=False
+        )
+        smpl_layer.num_betas += 1
+        num_frames = motion_aa_flat.shape[0]
+        all_joints = []
+        
+        print(f"Extracting joints for {num_frames} frames...")
+        
+        # Convert numpy arrays to torch tensors
+        body_pose_torch = motion_aa_flat[:, 3:66].float().to(C.device)
+        global_orient_torch = motion_aa_flat[:, :3].float().to(C.device)
+        betas_torch = betas.float().to(C.device)
+        transl_torch = transl.float().to(C.device)
 
-    # Extract the 3D joint positions for the 22 SMPL joints
-    keypoints_3d = body_pose.Jtr[:, :22, :].cpu().numpy()
+        for i in range(num_frames):
+            # Forward pass through SMPL layer to get joints
+            # The layer returns a tuple: (vertices, joints)
+            output = smpl_layer(
+                poses_body=body_pose_torch[i:i+1],
+                poses_root=global_orient_torch[i:i+1],
+                betas=betas_torch[i:i+1],
+                trans=transl_torch[i:i+1]
+            )
+            # Unpack the output tuple - joints are the second element
+            vertices, joints = output
+            joints_np = joints.cpu().numpy()  # Shape: (1, num_joints, 3)
+            all_joints.append(joints_np[0])
+        
+        all_joints = np.array(all_joints)  # Shape: (num_frames, num_joints, 3)
+        all_joints=all_joints[:,:22,:]
+        # Extract the 3D joint positions for the 22 SMPL joints
+        keypoints_3d = all_joints
 
     # 5. Save the reconstructed keypoints
     output_path = os.path.join(output_path, "reconstructed_keypoints_3d.npy")
