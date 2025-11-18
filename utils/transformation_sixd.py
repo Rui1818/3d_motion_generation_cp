@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from aitviewer.configuration import CONFIG as C
 from aitviewer.models.smpl import SMPLLayer
-from aitviewer.renderables.smpl import SMPLSequence
 from utils import utils_transform
 from utils.body_model import BodyModel as BM
 
@@ -30,13 +29,28 @@ class BodyModel(torch.nn.Module):
             return self.body_model(**body_params)
 
 
-def smplx_to_6d(input_path, output_path):
+def smplx_to_6d(input_path, output_path=None):
+    """
+    Convert SMPL-X poses from axis-angle to 6D representation and save with translation and betas.
+    returns a motions dictionary containing 6D poses, translations, and betas
+    """
     data = np.load(input_path)
     # 1. Extract global orientation and body pose (first 21 joints for SMPL compatibility)
     global_orient = torch.from_numpy(data['global_orient']).float()  # (frames, 3)
     body_pose = torch.from_numpy(data['body_pose']).float()      # (frames, 63)
     transl = torch.from_numpy(data['transl']).float()            # (frames, 3)
-    betas = torch.from_numpy(data['betas']).float()              # (frames, 11)
+    betas = torch.from_numpy(data['betas']).float() 
+                 # (frames, 11)
+    # discard 0 frames
+    is_nonzero_row = (transl != 0).any(axis=1)
+    ind = np.where(is_nonzero_row)[0]
+    global_orient = global_orient[ind]
+    body_pose = body_pose[ind]
+    transl = transl[ind]
+    betas = betas[ind]
+
+    #root normalization
+    transl = transl - transl[0:1, :]
 
     # 2. Concatenate to get full SMPL body pose (1 root + 21 joints = 22 joints)
     # Shape: (frames, 66)
@@ -51,6 +65,7 @@ def smplx_to_6d(input_path, output_path):
     # Reshape back to a flat vector per frame: (frames, 22 * 6) -> (frames, 132)
     smpl_poses_6d_flat = smpl_poses_6d.reshape(smpl_poses_6d.shape[0], -1)
 
+    """
     # 4. Save the result
     output_filename = "motion_6d_with_transl.npz"
     output_path = os.path.join(output_path, output_filename)
@@ -60,16 +75,20 @@ def smplx_to_6d(input_path, output_path):
     print(f"Original shape (axis-angle): {smpl_poses_aa.shape}")
     print(f"Output shape (6D): {smpl_poses_6d_flat.shape}")
     print(f"Saved result to: {output_path}")
+    """
+    motion={"motion_6d": smpl_poses_6d_flat.numpy(), "transl": transl.numpy(), "betas": betas.numpy()}
+    return motion
 
 def sixd_to_smplx(input_path, output_path, smplmodel_path, kid_template_path=None):
+    #TODO: how to handle betas? Load 
     C.smplx_models = "smpl_models/"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # 1. Load the 6D rotation and translation data from the .npz file
     data = np.load(input_path)
     motion_6d_flat = torch.from_numpy(data['motion_6d']).float().to(device)
     transl = torch.from_numpy(data['transl']).float().to(device)
-    betas = torch.from_numpy(data['betas']).float().to(device)
     num_frames = motion_6d_flat.shape[0]
+    betas = torch.from_numpy(data['betas']).float().to(device) if 'betas' in data else torch.zeros(num_frames, 11, device=device)
 
     # 2. Convert 6D rotations back to axis-angle
     # Reshape from (frames, 132) to (frames * 22, 6) for batch conversion

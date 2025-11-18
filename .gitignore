@@ -8,5 +8,5 @@ observations/
 my_training/
 __pycache__/
 smpl_models/
-0/
+mydataset/
 test/

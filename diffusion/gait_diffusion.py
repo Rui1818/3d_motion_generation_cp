@@ -30,6 +30,7 @@ class GaitDiffusionModel(GaussianDiffusion):
         )
 
     def masked_l2(self, a, b):
+        #TODO: adjust loss to keypoint type
         bs, n, c = a.shape
 
         loss = torch.mean(

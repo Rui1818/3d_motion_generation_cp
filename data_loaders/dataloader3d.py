@@ -5,21 +5,12 @@ import torch
 
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
+from utils.transformation_sixd import smplx_to_6d
 
 
 def drop_duplicate_frames(data):
     """
-    Drop frames where all 25 rows are identical.
-    
-    Parameters:
-    -----------
-    data : numpy.ndarray
-        Array with shape (frames, 25, 5)
-    
-    Returns:
-    --------
-    numpy.ndarray
-        Filtered array with duplicate frames removed
+    Remove frames that are the same for all coordinates.
     """
     first_row = data[:, 0:1, :]  # Shape: (frames, 1, 5)
     all_rows_same = np.all(data == first_row, axis=(1,2))
@@ -33,6 +24,28 @@ def subtract_root(data):
     root = (data[0,8,:]+data[0, 9, :])/2
 
     return np.delete((data - root), 1, axis=1)
+
+def load_pure_keypoints(keypointspath, motionlist):
+    keypoints = np.load(keypointspath)  # shape (frames, 25, 5)
+    keypoints = drop_duplicate_frames(keypoints)
+    #reshape to (frame, 72)
+    keypoints=keypoints[...,:3]
+    keypoints = subtract_root(keypoints)
+    keypoints = keypoints.reshape(-1, 72)
+    tensor = torch.tensor(keypoints, dtype=torch.float32)
+    motionlist.append(tensor)
+    return motionlist
+
+def load_6drotations(motion_6dpath, motionlist):
+    res = smplx_to_6d(motion_6dpath)
+    motion_6d = res["motion_6d"]  # shape (frames, 132)
+    transl = res["transl"]       # shape (frames, 3)
+    betas = res["betas"]          # shape (frames, 11)
+    motion_6d = torch.tensor(motion_6d, dtype=torch.float32)
+    transl = torch.tensor(transl, dtype=torch.float32)
+    result=torch.cat((motion_6d, transl), dim=1)  #shape (frames, 135)
+    motionlist.append(result)
+    return motionlist
 
 class MotionDataset(Dataset):
     def __init__(
@@ -101,7 +114,7 @@ class MotionDataset(Dataset):
     
 
 
-def load_data(motion_path, split, mode=None,**kwargs):
+def load_data(motion_path, split, mode=None, keypointtype="pure",**kwargs):
     """
     Load SMPL keypoint .npy files from a folder into a list of PyTorch tensors.
 
@@ -115,33 +128,25 @@ def load_data(motion_path, split, mode=None,**kwargs):
     if split == "train":
         motion_clean =[]
         motion_w_o=[]
-        #TODO: adjust to the dataset file structure
         for patient in sorted(os.listdir(motion_path)):
             for file in sorted(os.listdir(os.path.join(motion_path, patient))):
                 take=file.split('_')
                 if take[1]=='c1':
                     #motion with orthosis
-                    file_name=file
-                    file_path = os.path.join(motion_path, patient, file_name, "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
-                    clean_keypoints = np.load(file_path)  # shape (frames, 25, 5)
-                    clean_keypoints = drop_duplicate_frames(clean_keypoints)
-                    #reshape to (frame, 72)
-                    clean_keypoints=clean_keypoints[...,:3]
-                    clean_keypoints = subtract_root(clean_keypoints)
-                    clean_keypoints = clean_keypoints.reshape(-1, 72)
-                    tensor = torch.tensor(clean_keypoints, dtype=torch.float32)
-                    motion_clean.append(tensor)
-
-                    #motion without orthosis
-                    orth_path = take[0]+'_c2_'+"_".join(take[2:])
-                    file_path= os.path.join(motion_path, patient, orth_path, "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
-                    no_orth_keypoints = drop_duplicate_frames(np.load(file_path))  # shape (frames, 25, 5)
-                    #reshape to (frame, 72)
-                    no_orth_keypoints=no_orth_keypoints[...,:3]
-                    no_orth_keypoints = subtract_root(no_orth_keypoints)
-                    no_orth_keypoints = no_orth_keypoints.reshape(-1, 72)
-                    orth_tensor = torch.tensor(no_orth_keypoints, dtype=torch.float32)
-                    motion_w_o.append(orth_tensor)
+                    if keypointtype=="6d":
+                        file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "fit-smplx", "smplx-params.npz")
+                        motion_clean=load_6drotations(file_path, motion_clean)
+                        no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
+                        file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "fit-smplx", "smplx-params.npz")
+                        motion_w_o=load_6drotations(file_path_wo, motion_w_o)
+                    elif keypointtype=="pure":
+                        file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d.npy")
+                        motion_clean=load_pure_keypoints(file_path, motion_clean)
+                        no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
+                        file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d.npy")
+                        motion_w_o=load_pure_keypoints(file_path_wo, motion_w_o)
+                    else:
+                        raise ValueError(f"Unknown keypoint type: {keypointtype}")
         if not motion_clean:
             raise FileNotFoundError(f"No files found in directory: {motion_path}")
     elif split == "test":

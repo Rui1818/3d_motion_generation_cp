@@ -67,6 +67,7 @@ def main():
     motion_clean, motion_w_o = load_data(
         args.dataset_path,
         "train",
+        keypointtype="6d"
     )
 
     print("creating data loader...")
