@@ -75,4 +75,7 @@ def create_gaussian_diffusion(args):
         ),
         loss_type=loss_type,
         rescale_timesteps=rescale_timesteps,
+        lambda_keypoint=args.lambda_keypoint,
+        lambda_rot_vel=args.lambda_rot_vel,
+        lambda_transl_vel=args.lambda_transl_vel,
     )

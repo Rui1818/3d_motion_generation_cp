@@ -136,6 +136,15 @@ def add_model_options(parser):
         action="store_true",
         help="no data normalisation for the 6d motions",
     )
+    group.add_argument(
+        "--lambda_rot_vel", default=0.0, type=float, help="Weight for rotational velocity loss."
+    )
+    group.add_argument(
+        "--lambda_transl_vel",
+        default=0.0,
+        type=float,
+        help="Weight for translational velocity loss.",
+    )
 
 
 def add_data_options(parser):

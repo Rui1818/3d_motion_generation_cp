@@ -221,9 +221,10 @@ if __name__ == "__main__":
     parser.add_argument("--smplseqpath", type=str, default=None, help="Path to the SMPL sequence file (optional)")
     """
     keypoints_path = "mydataset\\753\\20250617_c2_a1_Take3\\split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d.npy"
-    #keypoints_path="test/reconstructed_keypoints_3d.npy"
+    keypoints_path="test/reconstructed_keypoints_3d.npy"
     reference_path = os.path.join("observations", "753", "vitpose_c1_a1", "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
+    reference_path="test/reconstructed_keypoints_3d_ref.npy"
     condition_path = os.path.join("observations", "753", "vitpose_c2_a1", "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
     smplseq= "mydataset\\740\\20251002_c1_a1_Take1\\split_subjects\\0\\fit-smplx\\smplx-params.npz"
-    visualize_gait(keypoints_path, reference_path=None, condition_path=None, smplseq_path=None)
-    #visualize_smpl_keypoints(smplseq)
+    #visualize_gait(keypoints_path, reference_path=reference_path, condition_path=None, smplseq_path=smplseq)
+    visualize_smpl_keypoints(smplseq)

@@ -43,7 +43,7 @@ def load_6drotations(motion_6dpath, motionlist):
     betas = res["betas"]          # shape (frames, 11)
     motion_6d = torch.tensor(motion_6d, dtype=torch.float32)
     transl = torch.tensor(transl, dtype=torch.float32)
-    result=torch.cat((motion_6d, transl), dim=1)  #shape (frames, 135)
+    result=torch.cat((transl, motion_6d), dim=1)  #shape (frames, 135)
     motionlist.append(result)
     return motionlist
 
