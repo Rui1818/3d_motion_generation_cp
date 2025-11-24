@@ -18,14 +18,20 @@ def drop_duplicate_frames(data):
     mask = ~all_rows_same
     return data[mask]
 
-def subtract_root(data):
+def subtract_root(data, keypointtype):
     #only after frames have been cut
     #also deletes 0 row
-    root = (data[0,8,:]+data[0, 9, :])/2
+    if keypointtype=="openpose":
+        root = (data[0,8,:]+data[0, 9, :])/2
+        data=np.delete((data - root), (1,8), axis=1)
+    elif keypointtype=="smpl":
+        root = data[0,0,:]
+    else:
+        raise ValueError(f"Unknown keypoint type: {keypointtype}")
 
     return np.delete((data - root), 1, axis=1)
 
-def load_pure_keypoints(keypointspath, motionlist):
+def load_pure_keypoints(keypointspath, motionlist, keypointtype):
     keypoints = np.load(keypointspath)  # shape (frames, 25, 5)
     keypoints = drop_duplicate_frames(keypoints)
     #reshape to (frame, 72)
@@ -114,7 +120,7 @@ class MotionDataset(Dataset):
     
 
 
-def load_data(motion_path, split, mode=None, keypointtype="pure",**kwargs):
+def load_data(motion_path, split, mode=None, keypointtype="openpose",**kwargs):
     """
     Load SMPL keypoint .npy files from a folder into a list of PyTorch tensors.
 
@@ -139,12 +145,12 @@ def load_data(motion_path, split, mode=None, keypointtype="pure",**kwargs):
                         no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
                         file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "fit-smplx", "smplx-params.npz")
                         motion_w_o=load_6drotations(file_path_wo, motion_w_o)
-                    elif keypointtype=="pure":
+                    elif keypointtype=="openpose" or keypointtype=="smpl":
                         file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d.npy")
-                        motion_clean=load_pure_keypoints(file_path, motion_clean)
+                        motion_clean=load_pure_keypoints(file_path, motion_clean, keypointtype)
                         no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
                         file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d.npy")
-                        motion_w_o=load_pure_keypoints(file_path_wo, motion_w_o)
+                        motion_w_o=load_pure_keypoints(file_path_wo, motion_w_o, keypointtype)
                     else:
                         raise ValueError(f"Unknown keypoint type: {keypointtype}")
         if not motion_clean:

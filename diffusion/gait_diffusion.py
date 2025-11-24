@@ -165,29 +165,32 @@ class GaitDiffusionModel(GaussianDiffusion):
                 model_output,
             )
 
-            _,_,c=target.shape
-            if c==135:
-                #rotation representation+translation
-                target_rot_vel = target[:, 1:, 3:]- target[:, :-1, 3:]
-                model_output_rot_vel = model_output[:, 1:, 3:]- model_output[:, :-1, 3:]
-                target_transl_vel = target[:, 1:, :3]- target[:, :-1, :3]
-                model_output_transl_vel = model_output[:, 1:, :3]- model_output[:, :-1, :3]
-                terms['rot_vel_mse'] = self.masked_l2(
-                    target_rot_vel,
-                    model_output_rot_vel,
-                )
-                terms['transl_vel_mse'] = self.masked_l2(
-                    target_transl_vel,
-                    model_output_transl_vel,
-                )
-            else:
-                #keypoints only
-                target_vel = target[:, 1:, :]- target[:, :-1, :]
-                model_output_vel = model_output[:, 1:, :]- model_output[:, :-1, :]
-                terms['rot_vel_mse'] = self.masked_l2(
-                    target_vel,
-                    model_output_vel,
-                )
+            if self.lambda_rot_vel > 0.0 or self.lambda_transl_vel > 0.0:
+                #velocity loss
+                _,_,c=target.shape
+                if c==135:
+                    #rotation representation+translation
+                    target_rot_vel = target[:, 1:, 3:]- target[:, :-1, 3:]
+                    model_output_rot_vel = model_output[:, 1:, 3:]- model_output[:, :-1, 3:]
+                    target_transl_vel = target[:, 1:, :3]- target[:, :-1, :3]
+                    model_output_transl_vel = model_output[:, 1:, :3]- model_output[:, :-1, :3]
+                    terms['rot_vel_mse'] = self.masked_l2(
+                        target_rot_vel,
+                        model_output_rot_vel,
+                    )
+                    terms['transl_vel_mse'] = self.masked_l2(
+                        target_transl_vel,
+                        model_output_transl_vel,
+                    )
+                else:
+                    #keypoints only
+                    target_vel = target[:, 1:, :]- target[:, :-1, :]
+                    model_output_vel = model_output[:, 1:, :]- model_output[:, :-1, :]
+                    terms['rot_vel_mse'] = self.masked_l2(
+                        target_vel,
+                        model_output_vel,
+                    )
+
 
 
             

@@ -10,3 +10,5 @@ __pycache__/
 smpl_models/
 mydataset/
 test/
+humanML3d/
+floor_c1_a3.ply

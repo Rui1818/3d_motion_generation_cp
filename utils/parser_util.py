@@ -165,6 +165,13 @@ def add_data_options(parser):
         type=str,
         help="Dataset path",
     )
+    group.add_argument(
+        "--keypointtype",
+        default="openpose",
+        choices=["openpose", "smpl", "6d"],
+        type=str,
+        help="The type of keypoints to be used (openpose, smpl, or 6d).",
+    )
 
 
 def add_training_options(parser):

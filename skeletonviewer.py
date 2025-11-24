@@ -61,12 +61,13 @@ def repair_data(data):
 if __name__ == "__main__":
     # Set the path to your SMPL models
     C.smplx_models = "smpl_models/"
-    keypoints=np.load("0\\keypoints_3d\\smpl-keypoints-3d.npy") 
-    keypoints=repair_data(keypoints)
+    keypoints=np.load("mydataset/gait_052/20250912_c1_a1_Take1\\split_subjects\\0\\fit-smplx\\new-smpl-keypoints_cut.npy")
+    keypoints=np.load("mydataset/gait_052/20250912_c1_a1_Take1\\split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy")
+    #keypoints=repair_data(keypoints)
     
     v=Viewer()
     for i in range(keypoints.shape[1]):
         add_keypoints(keypoints[:,i:i+1,:], v, str(i))
-    add_skeleton(keypoints,v, "skeleton", color=(0.0, 1.0, 0.0, 1))
+    #add_skeleton(keypoints,v, "skeleton", color=(0.0, 1.0, 0.0, 1))
     v.run()
     #visualize_gait(keypoints_path, reference_path, condition_path)
