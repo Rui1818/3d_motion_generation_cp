@@ -29,7 +29,8 @@ class BODY25Skeletons(Skeletons):
 def subtract_root(data):
     #only after frames have been cut
     root = (data[0,8,:]+data[0, 9, :])/2
-    return data - root
+    data=np.delete((data - root), (1,8), axis=1)
+    return data
 
 def drop_duplicate_frames(data):
     first_row = data[:, 0:1, :]  # Shape: (frames, 1, 5)
@@ -47,7 +48,7 @@ def add_keypoints(path, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
     elif keypoints.shape[-1] == 5:
         #keypoints=drop_duplicate_frames(keypoints)
         keypoints = keypoints[..., :3]
-        #keypoints=subtract_root(keypoints)
+        keypoints=subtract_root(keypoints)
 
     
 
@@ -57,8 +58,8 @@ def add_keypoints(path, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
         point_size=3.0,
         color=color
     )
-    if keypoints.shape[1]==24:
-        keypoints=np.insert(keypoints, 1,0, axis=1)
+    #if keypoints.shape[1]==24:
+    #    keypoints=np.insert(keypoints, 1,0, axis=1)
 
     #skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
     #viewer.scene.add(skeleton)
@@ -237,7 +238,7 @@ if __name__ == "__main__":
     root="mydataset"
     smplpart="split_subjects/0/fit-smplx/smplx-params.npz"
     keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
-    fin_take="_a1_Take1"
+    fin_take="_a3_Take2"
     take="gait_753/20250617_c1"+fin_take
     ref_take="gait_753/20250617_c2"+fin_take
     keypoints_path = os.path.join(root, take, keypointspart)

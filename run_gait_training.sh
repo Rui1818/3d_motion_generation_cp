@@ -29,7 +29,7 @@ run_training() {
     local lr=$6
 
     echo "--- Starting Training: $save_dir ---"
-    echo "    Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
+    echo "Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
 
     python gait_train.py \
         --save_dir "$save_dir" \
