@@ -2,15 +2,15 @@
 
 # --- Static Parameters ---
 # Settings that are the same for all experiments
-DATASET_PATH="observations"
+DATASET_PATH="mydataset"
 DATASET_NAME="gait"
-BATCH_SIZE=2
-SAVE_INTERVAL=1000
-LOG_INTERVAL=100
+BATCH_SIZE=4
+SAVE_INTERVAL=5000
+LOG_INTERVAL=1000
 DEVICE=0
-NUM_WORKERS=2
+NUM_WORKERS=4
 ARCH="diffusion_DiffMLP"
-MOTION_LENGTH=296
+MOTION_LENGTH=240
 
 # --- Helper Function ---
 # This function runs a single training experiment
@@ -27,6 +27,12 @@ run_training() {
     local weight_decay=$4
     local num_steps=$5
     local lr=$6
+    local keypointtype=$7
+    local cond_mask_prob=$8
+    local lambda_rot_vel=$9
+    local lambda_transl_vel=${10}
+    local motionnfeatures=${11}
+    local sparsedimod=${12}
 
     echo "--- Starting Training: $save_dir ---"
     echo "Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
@@ -34,19 +40,25 @@ run_training() {
     python gait_train.py \
         --save_dir "$save_dir" \
         --dataset_path "$DATASET_PATH" \
-        --dataset "$DATASET_NAME" \
-        --weight_decay "$weight_decay" \
-        --batch_size "$BATCH_SIZE" \
-        --latent_dim "$latent_dim" \
-        --save_interval "$SAVE_INTERVAL" \
-        --log_interval "$LOG_INTERVAL" \
-        --device "$DEVICE" \
-        --num_workers "$NUM_WORKERS" \
-        --arch "$ARCH" \
-        --layers "$layers" \
-        --num_steps "$num_steps" \
         --input_motion_length "$MOTION_LENGTH" \
+        --dataset "$DATASET_NAME" \
+        --save_interval "$SAVE_INTERVAL" \
+        --batch_size "$BATCH_SIZE" \
+        --log_interval "$LOG_INTERVAL" \
+        --num_workers "$NUM_WORKERS" \
+        --device "$DEVICE" \
+        --arch "$ARCH" \
+        --latent_dim "$latent_dim" \
+        --layers "$layers" \
+        --weight_decay "$weight_decay" \
+        --num_steps "$num_steps" \
         --lr "$lr" \
+        --keypointtype "$keypointtype" \
+        --cond_mask_prob "$cond_mask_prob" \
+        --lambda_rot_vel "$lambda_rot_vel" \
+        --lambda_transl_vel "$lambda_transl_vel" \
+        --motion_nfeat "$motionnfeatures" \
+        --sparse_dim "$sparsedim" \
         --overwrite
 
     # Check if training was successful
@@ -63,13 +75,6 @@ run_training() {
 
 #run_training "my_training/config1" 128 8 1e-4 20000 2e-4
 #run_training "my_training/config2" 256 8 1e-4 20000 2e-4
-#run_training "my_training/config3" 512 8 1e-4 20000 2e-4
-#run_training "my_training/config4" 128 6 1e-4 20000 2e-4
-#run_training "my_training/config5" 256 6 1e-4 20000 2e-4
-run_training "my_training/config6" 512 8 1e-4 60000 2e-4
-#run_training "my_training/config7" 128 8 1e-4 20000 2e-4
-#run_training "my_training/config8" 256 8 1e-4 60000 2e-4
-run_training "my_training/config9" 256 8 1e-4 60000 2e-4
 
 # Config 4: Add more configs as you like...
 # run_training "my_training/config4_..." ... ... ...

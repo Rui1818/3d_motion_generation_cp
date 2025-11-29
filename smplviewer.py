@@ -7,7 +7,6 @@ from aitviewer.viewer import Viewer
 from aitviewer.renderables.point_clouds import PointClouds
 from plyfile import PlyData
 from aitviewer.renderables.skeletons import Skeletons
-import argparse
 
 import torch
 
@@ -48,7 +47,7 @@ def add_keypoints(path, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
     elif keypoints.shape[-1] == 5:
         #keypoints=drop_duplicate_frames(keypoints)
         keypoints = keypoints[..., :3]
-        keypoints=subtract_root(keypoints)
+        #keypoints=subtract_root(keypoints)
 
     
 
@@ -95,29 +94,40 @@ def visualize_gait(keypoints_path, reference_path=None, condition_path=None, smp
 def load_smpl_sequence(smplseq_path, v, name="SMPL-X Sequence"):
     data = np.load(smplseq_path)
     
-        # smplx parameters
+    # smplx parameters
     body_pose = data['body_pose']           # (419, 63)
-        #print(body_pose.shape)
+    #print(body_pose.shape)
     global_orient = data['global_orient']   # (419, 3)
     betas = data['betas']                   # (419, 11)
     transl = data['transl']                 # (419, 3)
     left_hand_pose = data['left_hand_pose'] # (419, 12) - PCA components
     right_hand_pose = data['right_hand_pose'] # (419, 12) - PCA components
         
-    print(f"Loaded sequence with {body_pose.shape[0]} frames")
+    #print(f"Loaded sequence with {body_pose.shape[0]} frames")
         
         # Create SMPL-X layer with PCA hand pose support
-    smpl_layer = SMPLLayer(
-            model_type="smplx", 
-            gender="neutral", 
-            device=C.device,
-            age="kid",
-            kid_template_path=r"C:\Users\Rui\Vorlesungskript\Master\Thesis\test\smpl_models\smplx\smplx_kid_template.npy",
-            use_pca=True, 
-            num_pca_comps=12,  
-            flat_hand_mean=False
+    if betas.shape[1]==11:
+        smpl_layer = SMPLLayer(
+                model_type="smplx", 
+                gender="neutral", 
+                device=C.device,
+                age="kid",
+                kid_template_path=r"C:\Users\Rui\Vorlesungskript\Master\Thesis\test\smpl_models\smplx\smplx_kid_template.npy",
+                use_pca=True, 
+                num_pca_comps=12,  
+                flat_hand_mean=False
+            )
+
+        smpl_layer.num_betas += 1
+    else:
+        smpl_layer = SMPLLayer(
+                model_type="smplx", 
+                gender="neutral", 
+                device=C.device,
+                use_pca=True, 
+                num_pca_comps=12,  
+                flat_hand_mean=False
         )
-    smpl_layer.num_betas += 1
         
         # Create SMPL-X sequence
         # When use_pca=True, the layer expects 12-dimensional hand poses
@@ -139,7 +149,7 @@ def visualize_smpl_keypoints(smplkeypoints_path):
     
     # smplx parameters
     body_pose = data['body_pose']           # (419, 63)
-    print(body_pose.shape)
+    #print(body_pose.shape)
     global_orient = data['global_orient']   # (419, 3)
     betas = data['betas']                   # (419, 11)
     transl = data['transl']                 # (419, 3)
@@ -223,28 +233,52 @@ def visualize_smpl_keypoints(smplkeypoints_path):
     v.scene.add(smpl_sequence)
     v.scene.add(smpl_joints_pc)
     v.run()
+
+def visualiza_gait_batch(root):
+    v=Viewer()
+    ply_data = PlyData.read("floor_c1_a3.ply")
+    vertices = ply_data['vertex']
+    floor_points = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
     
+    # Create point cloud (add a frame dimension if needed)
+    floor_pc = PointClouds(floor_points[np.newaxis, :, :], name="MyFloor", point_size=2.0)
+    v.scene.add(floor_pc)
+    for take in os.listdir(root):
+        cond=take.split("_")
+        if cond[1]=="c1" and cond[2]=="a3":
+            c2 = cond[0]+'_c2_'+"_".join(cond[2:])
+            keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
+            keypointspart="split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy"
+            smplseqpart="split_subjects/0/fit-smplx/smplx-params.npz"
+            print(take)
+            print(c2)
+            keypoints_path = os.path.join(root, take, keypointspart)
+            keypoints_path2 = os.path.join(root, c2, keypointspart)
+            smplseq_path= os.path.join(root, take, smplseqpart)
+            smplseq_reference_path= os.path.join(root, c2, smplseqpart)
+            add_keypoints(keypoints_path, v, take)
+            add_keypoints(keypoints_path2, v, c2, color=(0.0, 0.0, 1.0, 1))
+            #load_smpl_sequence(smplseq_path, v, name=take)
+            #load_smpl_sequence(smplseq_reference_path, v, name=c2)
+    
+    v.run()
+    return
 
 if __name__ == "__main__":
     # Set the path to your SMPL models
     C.smplx_models = "smpl_models/"
-    """
-    parser = argparse.ArgumentParser(description="My command-line program")
 
-    # Add arguments
-    parser.add_argument("--keypointspath", type=str, help="Path to the keypoints file")
-    parser.add_argument("--smplseqpath", type=str, default=None, help="Path to the SMPL sequence file (optional)")
-    """
     root="mydataset"
     smplpart="split_subjects/0/fit-smplx/smplx-params.npz"
     keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
-    fin_take="_a3_Take2"
-    take="gait_753/20250617_c1"+fin_take
-    ref_take="gait_753/20250617_c2"+fin_take
+    fin_take="_a3_Take3"
+    take="gait_766/20251001_c1"+fin_take
+    ref_take="gait_766/20251001_c2"+fin_take
     keypoints_path = os.path.join(root, take, keypointspart)
     keypoints_path2 = os.path.join(root, ref_take, keypointspart)
-    condition_path = os.path.join(root, "gait_753/20250617_c1_a1_Take1", "split_subjects/0/fit-smplx/new-smpl-keypoints_cut.npy")
+    condition_path = os.path.join(root, "gait_766/20251001_c2_a3_Take3", "split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy")
     smplseq= os.path.join(root, take, smplpart)
     smplseq2= os.path.join(root, ref_take, smplpart)
-    visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
+    #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
+    visualiza_gait_batch(root+"/gait_766")

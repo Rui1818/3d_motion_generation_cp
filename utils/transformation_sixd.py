@@ -58,6 +58,7 @@ def smplx_to_6d(input_path, output_path=None):
 
 def sixd_to_smplx(input_path, output_path, smplmodel_path, kid_template_path=None):
     #TODO: how to handle betas? Load 
+    #TODO read kid/adult smplx model correctly
     C.smplx_models = "smpl_models/"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # 1. Load the 6D rotation and translation data from the .npz file
@@ -82,7 +83,7 @@ def sixd_to_smplx(input_path, output_path, smplmodel_path, kid_template_path=Non
     }
     # 4. Instantiate body model and perform forward kinematics
     print("Performing forward kinematics to calculate joint positions...")
-    if kid_template_path is None:
+    if betas.shape[1]!=11:
         print("Using generic SMPL-X model for forward kinematics.")
         smpl_layer = SMPLLayer(
             model_type="smplx", 

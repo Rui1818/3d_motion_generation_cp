@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from utils.parser_util import sample_args
 from utils.model_util import create_model_and_diffusion, load_model_wo_clip
-from data_loaders.dataloader3d import load_data, MotionDataset, drop_duplicate_frames, subtract_root
+from data_loaders.dataloader3d import load_data, MotionDataset, drop_duplicate_frames, subtract_root, get_dataloader
 
 def load_diffusion_model(args):
     """
@@ -28,32 +28,20 @@ def load_diffusion_model(args):
     model.eval()  # Set model to evaluation mode
     return model, diffusion
 
-def prepare_conditional_motion(file_path, input_motion_length):
+def prepare_conditional_motion(file_path, input_motion_length, keypointtype):
     """
     Loads and preprocesses the conditional motion data from a given file path.
     """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Conditional motion file not found: {file_path}")
+    clean, cond = load_data(file_path, keypointtype)
+    dataset = MotionDataset(
+        "gait",
+        clean,
+        cond,
+        input_motion_length=input_motion_length,
+    )
 
-    motion_w_o_np = drop_duplicate_frames(np.load(file_path))
-    motion_w_o_np = motion_w_o_np[..., :3]
-    motion_w_o_np = subtract_root(motion_w_o_np)
-    motion_w_o_np = motion_w_o_np.reshape(-1, 72)
-    motion_w_o = torch.tensor(motion_w_o_np, dtype=torch.float32)
-
-    # Crop or pad the conditional motion to the model's input length
-    seqlen_wo = motion_w_o.shape[0]
-    if seqlen_wo <= input_motion_length:
-        if seqlen_wo > 0:
-            frames_to_add = input_motion_length - seqlen_wo
-            last_frame_wo = motion_w_o[-1:]
-            padding_wo = last_frame_wo.repeat(frames_to_add, 1)
-            motion_w_o = torch.cat([motion_w_o, padding_wo], dim=0)
-    else:
-        # If longer, just take the beginning
-        motion_w_o = motion_w_o[:input_motion_length]
-
-    return motion_w_o.unsqueeze(0)  # Add batch dimension
+    #return motion_w_o.unsqueeze(0)  # Add batch dimension
+    return get_dataloader(dataset, "test", batch_size=1, num_workers=1)
 
 def sample(model, diffusion, cond_motion, args):
     """
@@ -108,49 +96,36 @@ def main():
     
 
 
-    
-    file_path = os.path.join("observations", "753", "vitpose_c2_a1", "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
-    file_path_turn = os.path.join("observations", "753", "vitpose_c2_a3", "vitpose", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
+    #TODO change sample dataset
+    file_path = ""
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Conditional motion file not found: {file_path}")
 
     # The model expects a batch, so add a batch dimension
-    cond_motion = prepare_conditional_motion(file_path, args.input_motion_length).to(device)
-    cond_motion_turn = prepare_conditional_motion(file_path_turn, args.input_motion_length).to(device)
-
-    print(f"Condition motion shape: {cond_motion.shape}")
-
-    # --- Run the generation ---
+    dataloader = prepare_conditional_motion(file_path, args.input_motion_length, args.keypointtype)
+    #cond_motion = prepare_conditional_motion(file_path, args.input_motion_length).to(device)
+    #cond_motion_turn = prepare_conditional_motion(file_path_turn, args.input_motion_length).to(device)
     print("Generating motion...")
-
-    generated_motion = sample(model, diffusion, cond_motion, args)
-    generated_motion_turn = sample(model, diffusion, cond_motion_turn, args)
-
-    print("Motion generation complete.")
-
-    # --- Save the output ---
-    # The output is a tensor on the GPU, move it to CPU and convert to numpy
-    generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
-    generated_motion_turn_np = generated_motion_turn.squeeze(0).cpu().numpy()
-
-    # Create an output directory if it doesn't exist
+        # Create an output directory if it doesn't exist
     if not args.output_dir:
         name, _ = os.path.splitext(os.path.basename(args.model_path))
         args.output_dir = os.path.join(os.path.dirname(args.model_path), "generated_motions"+name)
-    
-    os.makedirs(args.output_dir, exist_ok=True)
+    for i, batch in enumerate(tqdm(dataloader)):
+        reference, condition = batch
+        condition=condition.to(device)
+        print(reference.shape, condition.shape)  # shapes of the batch
+        print(f"Condition motion shape: {condition.shape}")
 
-    output_filename = f"generated_motion_c1_a1.npy"
-    output_path = os.path.join(args.output_dir, output_filename)
-    output_filename_turn = f"generated_motion_c1_a3.npy"
-    output_path_turn = os.path.join(args.output_dir, output_filename_turn)
+        # --- Run the generation ---
+        generated_motion = sample(model, diffusion, condition, args)
+        generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
+        reference_np=reference.squeeze(0).cpu().numpy()
+        ref_path=os.path.join(args.outputdir, "reference_motion_"+i+".npy")
+        gen_path=os.path.join(args.outputdir, "generated_motion_"+i+".npy")
+        np.save(ref_path, reference_np)
+        np.save(gen_path, generated_motion_np)
 
-    np.save(output_path, generated_motion_np)
-    np.save(output_path_turn, generated_motion_turn_np)
-    print(f"Generated motion saved to: {output_path}")
-    print(f"Shape of saved motion: {generated_motion_np.shape}")
-    print(f"Generated motion saved to: {output_path_turn}")
-    print(f"Shape of saved motion_turn: {generated_motion_turn_np.shape}")
+    print("Motion generation complete.")
 
 if __name__ == "__main__":
     main()

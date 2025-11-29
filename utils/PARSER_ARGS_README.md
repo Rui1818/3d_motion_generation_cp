@@ -27,6 +27,7 @@ A compact export of all argparse options defined in utils/parser_util.py. Each l
 ## Dataset / Data options
 - `--dataset` (str, default=None, choices=["amass"]) — dataset name.
 - `--dataset_path` (str, default="./dataset/AMASS/") — dataset root path.
+- `--keypointtype` (str, default="openpose", choices=["6d", "smpl", "openpose"]) — type of keypoints to use.
 
 ## Training
 - `--save_dir` (str, required) — directory to save checkpoints & outputs.
@@ -35,6 +36,8 @@ A compact export of all argparse options defined in utils/parser_util.py. Each l
 - `--lr` (float, default=2e-4) — learning rate.
 - `--weight_decay` (float, default=0.0) — optimizer weight decay.
 - `--lr_anneal_steps` (int, default=0) — LR anneal steps.
+- `--lambda_rot_vel` (float, default=0.0) — weight for rotation velocity loss.
+- `--lambda_transl_vel` (float, default=0.0) — weight for translation velocity loss.
 - `--train_dataset_repeat_times` (int, default=1000) — repeat factor for training dataset.
 - `--eval_during_training` (flag) — run evaluation during training.
 - `--log_interval` (int, default=100) — log every N steps.
