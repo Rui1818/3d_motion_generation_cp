@@ -4,7 +4,7 @@
 # Settings that are the same for all experiments
 DATASET_PATH="mydataset"
 DATASET_NAME="gait"
-BATCH_SIZE=4
+BATCH_SIZE=8
 SAVE_INTERVAL=5000
 LOG_INTERVAL=1000
 DEVICE=0
@@ -32,7 +32,6 @@ run_training() {
     local lambda_rot_vel=$9
     local lambda_transl_vel=${10}
     local motionnfeatures=${11}
-    local sparsedim=${12}
 
     echo "--- Starting Training: $save_dir ---"
     echo "Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
@@ -58,7 +57,7 @@ run_training() {
         --lambda_rot_vel "$lambda_rot_vel" \
         --lambda_transl_vel "$lambda_transl_vel" \
         --motion_nfeat "$motionnfeatures" \
-        --sparse_dim "$sparsedim" \
+        --sparse_dim "$motionnfeatures" \
         --overwrite
 
     # Check if training was successful
@@ -72,13 +71,48 @@ run_training() {
 # --- Experiment Definitions ---
 # Now, we just call the function for each configuration we want to test.
 # The script will run these one after another.
+    local save_dir=$1
+    local latent_dim=$2
+    local layers=$3
+    local weight_decay=$4
+    local num_steps=$5
+    local lr=$6
+    local keypointtype=$7
+    local cond_mask_prob=$8
+    local lambda_rot_vel=$9
+    local lambda_transl_vel=${10}
+    local motionnfeatures=${11}
 
 # Openpose keypoints
 
-run_training "my_training/config1" 128 8 1e-4 20000 2e-4
-run_training "my_training/config2" 256 8 1e-4 20000 2e-4
+run_training "my_training/config1" 256 6 1e-4 500000 2e-4 openpose 0 0 0 69
+run_training "my_training/config2" 512 6 1e-4 500000 2e-4 openpose 0 0 0 69
+run_training "my_training/config3" 256 8 1e-4 500000 2e-4 openpose 0 0 0 69
+run_training "my_training/config4" 512 8 1e-4 500000 2e-4 openpose 0 0 0 69
+run_training "my_training/config5" 256 4 1e-4 500000 2e-4 openpose 0 0 0 69
+run_training "my_training/config6" 512 4 1e-4 500000 2e-4 openpose 0 0 0 69
+#velocity
+run_training "my_training/config7" 256 6 1e-4 500000 2e-4 openpose 0 0.5 0 69
+run_training "my_training/config8" 512 6 1e-4 500000 2e-4 openpose 0 0.5 0 69
+run_training "my_training/config9" 256 8 1e-4 500000 2e-4 openpose 0 0.5 0 69
+run_training "my_training/config10" 512 8 1e-4 500000 2e-4 openpose 0 0.5 0 69
+run_training "my_training/config11" 256 4 1e-4 500000 2e-4 openpose 0 0.5 0 69
+run_training "my_training/config12" 512 4 1e-4 500000 2e-4 openpose 0 0.5 0 69
 
 # 6d rotations
+run_training "my_training/config13" 256 6 1e-4 500000 2e-4 6d 0 0 0 135
+run_training "my_training/config14" 512 6 1e-4 500000 2e-4 6d 0 0 0 135
+run_training "my_training/config15" 256 8 1e-4 500000 2e-4 6d 0 0 0 135
+run_training "my_training/config16" 512 8 1e-4 500000 2e-4 6d 0 0 0 135
+run_training "my_training/config17" 256 4 1e-4 500000 2e-4 6d 0 0 0 135
+run_training "my_training/config18" 512 4 1e-4 500000 2e-4 6d 0 0 0 135
+#velocity
+run_training "my_training/config19" 256 6 1e-4 500000 2e-4 6d 0 0.5 0.1 135
+run_training "my_training/config20" 512 6 1e-4 500000 2e-4 6d 0 0.5 0.1 135
+run_training "my_training/config21" 256 8 1e-4 500000 2e-4 6d 0 0.5 0.1 135
+run_training "my_training/config22" 512 8 1e-4 500000 2e-4 6d 0 0.5 0.1 135
+run_training "my_training/config23" 256 8 1e-4 500000 2e-4 6d 0 0.5 0.1 135
+run_training "my_training/config24" 512 8 1e-4 500000 2e-4 6d 0 0.5 0.1 135
 
 # Config 4: Add more configs as you like...
 # run_training "my_training/config4_..." ... ... ...

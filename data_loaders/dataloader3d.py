@@ -154,11 +154,13 @@ def load_data(motion_path, split, keypointtype="openpose",**kwargs):
                     elif keypointtype=="openpose" or keypointtype=="smpl":
                         if keypointtype=="openpose":
                             file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
+                            no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
+                            file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
                         elif keypointtype=="smpl":
                             file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "fit-smplx", "smpl-keypoints-3d_cut.npy")
+                            no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
+                            file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "fit-smplx", "smpl-keypoints-3d_cut.npy)
                         motion_clean=load_pure_keypoints(file_path, motion_clean, keypointtype)
-                        no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
-                        file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
                         motion_w_o=load_pure_keypoints(file_path_wo, motion_w_o, keypointtype)
                     else:
                         raise ValueError(f"Unknown keypoint type: {keypointtype}")
