@@ -56,7 +56,7 @@ def smplx_to_6d(input_path, output_path=None):
     motion={"motion_6d": smpl_poses_6d_flat.numpy(), "transl": transl.numpy(), "betas": betas.numpy()}
     return motion
 
-def sixd_to_smplx(input_path, output_path, smplmodel_path, kid_template_path=None):
+def sixd_to_smplx(input_path, output_path):
     #TODO: how to handle betas? Load 
     #TODO read kid/adult smplx model correctly
     C.smplx_models = "smpl_models/"

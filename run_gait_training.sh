@@ -32,7 +32,7 @@ run_training() {
     local lambda_rot_vel=$9
     local lambda_transl_vel=${10}
     local motionnfeatures=${11}
-    local sparsedimod=${12}
+    local sparsedim=${12}
 
     echo "--- Starting Training: $save_dir ---"
     echo "Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
@@ -73,8 +73,12 @@ run_training() {
 # Now, we just call the function for each configuration we want to test.
 # The script will run these one after another.
 
-#run_training "my_training/config1" 128 8 1e-4 20000 2e-4
-#run_training "my_training/config2" 256 8 1e-4 20000 2e-4
+# Openpose keypoints
+
+run_training "my_training/config1" 128 8 1e-4 20000 2e-4
+run_training "my_training/config2" 256 8 1e-4 20000 2e-4
+
+# 6d rotations
 
 # Config 4: Add more configs as you like...
 # run_training "my_training/config4_..." ... ... ...

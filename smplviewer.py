@@ -271,14 +271,19 @@ if __name__ == "__main__":
     root="mydataset"
     smplpart="split_subjects/0/fit-smplx/smplx-params.npz"
     keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
-    fin_take="_a3_Take3"
-    take="gait_766/20251001_c1"+fin_take
-    ref_take="gait_766/20251001_c2"+fin_take
+    fin_take="_a4_Take2"
+    take="gait_753/20250617_c1"+fin_take
+    ref_take="gait_753/20250617_c2"+fin_take
     keypoints_path = os.path.join(root, take, keypointspart)
     keypoints_path2 = os.path.join(root, ref_take, keypointspart)
-    condition_path = os.path.join(root, "gait_766/20251001_c2_a3_Take3", "split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy")
+    condition_path = os.path.join(root, "gait_753/20250617_c2_a4_Take2", "split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy")
     smplseq= os.path.join(root, take, smplpart)
     smplseq2= os.path.join(root, ref_take, smplpart)
     #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
-    visualiza_gait_batch(root+"/gait_766")
+    #visualiza_gait_batch(root+"/gait_766")
+
+    v=Viewer()
+    load_smpl_sequence("mydataset/gait_753\\20250617_c1_a2_Take1\\split_subjects\\0\\fit-smplx\\smplx-params_cut.npz", v, name="c1 seq")
+    #load_smpl_sequence("mydataset/gait_766\\20251001_c2_a3_Take3\\split_subjects\\0\\fit-smplx\\smplx-params_cut_mirrored.npz", v, name="c2 seq")
+    v.run() 
