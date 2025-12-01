@@ -1,2 +1,2 @@
 python gait_train.py --save_dir my_training/config1 --dataset_path observations --dataset gait --weight_decay 1e-4 --batch_size 2 --latent_dim 128 --save_interval 50 --log_interval 50 --device 0 --num_workers 2 --arch diffusion_DiffMLP --layers 8 --num_steps 5000000 --input_motion_length 296 --keypointtype openpose --lambda_rot_vel 0 --lambda_transl_vel 0 --overwrite
-python gait_generate.py --model_path my_training/config1/model000020005.pt --input_motion_length 296
+python gait_generate.py --outputdir results/ --model_path my_training/config1/model000020005.pt --input_motion_length
