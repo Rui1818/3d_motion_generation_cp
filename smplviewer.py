@@ -245,10 +245,10 @@ def visualiza_gait_batch(root):
     v.scene.add(floor_pc)
     for take in os.listdir(root):
         cond=take.split("_")
-        if cond[1]=="c1" and cond[2]=="a3":
+        if cond[1]=="c1":
             c2 = cond[0]+'_c2_'+"_".join(cond[2:])
-            keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
-            keypointspart="split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy"
+            keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d.npy"
+            #keypointspart="split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy"
             smplseqpart="split_subjects/0/fit-smplx/smplx-params.npz"
             print(take)
             print(c2)
@@ -258,8 +258,8 @@ def visualiza_gait_batch(root):
             smplseq_reference_path= os.path.join(root, c2, smplseqpart)
             add_keypoints(keypoints_path, v, take)
             add_keypoints(keypoints_path2, v, c2, color=(0.0, 0.0, 1.0, 1))
-            #load_smpl_sequence(smplseq_path, v, name=take)
-            #load_smpl_sequence(smplseq_reference_path, v, name=c2)
+            load_smpl_sequence(smplseq_path, v, name=take)
+            load_smpl_sequence(smplseq_reference_path, v, name=c2)
     
     v.run()
     return
@@ -269,6 +269,7 @@ if __name__ == "__main__":
     C.smplx_models = "smpl_models/"
 
     root="mydataset"
+    root="test_dataset"
     smplpart="split_subjects/0/fit-smplx/smplx-params.npz"
     keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
     fin_take="_a4_Take2"
@@ -281,9 +282,5 @@ if __name__ == "__main__":
     smplseq2= os.path.join(root, ref_take, smplpart)
     #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
-    #visualiza_gait_batch(root+"/gait_766")
+    visualiza_gait_batch(root+"/gait_809")
 
-    v=Viewer()
-    load_smpl_sequence("mydataset/gait_753\\20250617_c1_a2_Take1\\split_subjects\\0\\fit-smplx\\smplx-params_cut.npz", v, name="c1 seq")
-    #load_smpl_sequence("mydataset/gait_766\\20251001_c2_a3_Take3\\split_subjects\\0\\fit-smplx\\smplx-params_cut_mirrored.npz", v, name="c2 seq")
-    v.run() 
