@@ -32,7 +32,7 @@ def prepare_conditional_motion(file_path, input_motion_length, keypointtype):
     """
     Loads and preprocesses the conditional motion data from a given file path.
     """
-    clean, cond = load_data(file_path, keypointtype)
+    clean, cond = load_data(file_path, split="train", keypointtype=keypointtype)
     dataset = MotionDataset(
         "gait",
         clean,
@@ -97,7 +97,7 @@ def main():
 
 
     #TODO change sample dataset
-    file_path = ""
+    file_path = "test_dataset"
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Conditional motion file not found: {file_path}")
 
@@ -110,6 +110,7 @@ def main():
     if not args.output_dir:
         name, _ = os.path.splitext(os.path.basename(args.model_path))
         args.output_dir = os.path.join(os.path.dirname(args.model_path), "generated_motions"+name)
+        args.output_dir="results/"
     for i, batch in enumerate(tqdm(dataloader)):
         reference, condition = batch
         condition=condition.to(device)
@@ -120,8 +121,8 @@ def main():
         generated_motion = sample(model, diffusion, condition, args)
         generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
         reference_np=reference.squeeze(0).cpu().numpy()
-        ref_path=os.path.join(args.outputdir, "reference_motion_"+i+".npy")
-        gen_path=os.path.join(args.outputdir, "generated_motion_"+i+".npy")
+        ref_path=os.path.join(args.output_dir, "reference_motion_"+str(i)+".npy")
+        gen_path=os.path.join(args.output_dir, "generated_motion_"+str(i)+".npy")
         np.save(ref_path, reference_np)
         np.save(gen_path, generated_motion_np)
 
