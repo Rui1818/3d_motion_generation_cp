@@ -57,7 +57,7 @@ def load_6drotations(motion_6dpath, motionlist):
     transl = torch.tensor(transl, dtype=torch.float32)
     result=torch.cat((transl, motion_6d), dim=1)  #shape (frames, 135)
     motionlist.append(result)
-    return motionlist
+    return motionlist, betas
 
 class MotionDataset(Dataset):
     def __init__(
@@ -122,6 +122,64 @@ class MotionDataset(Dataset):
         """
 
         return motion.float(), motion_w_o.float()
+    
+class TestDataset(Dataset):
+    def __init__(
+        self,
+        dataset,
+        motion_clean,
+        motion_without_orth,
+        betas=None,
+        mean=0,
+        std=1,
+        input_motion_length=196,
+        train_dataset_repeat_times=1,
+        no_normalization=False,
+    ):
+        self.dataset = dataset
+        self.mean = mean
+        self.std = std
+        self.motion_clean = motion_clean
+        self.motion_without_orth = motion_without_orth
+        self.train_dataset_repeat_times = train_dataset_repeat_times
+        self.no_normalization = no_normalization
+        self.betas = betas
+
+        self.motion_clean = motion_clean
+        self.motion_without_orth = motion_without_orth
+
+        self.input_motion_length = input_motion_length
+
+    def __len__(self):
+        return len(self.motion_clean) * self.train_dataset_repeat_times
+
+    def inv_transform(self, data):
+        return data * self.std + self.mean
+
+    def __getitem__(self, idx):
+        motion = self.motion_clean[idx % len(self.motion_clean)]
+        motion_w_o = self.motion_without_orth[idx % len(self.motion_clean)]
+        beta=self.betas[idx % len(self.motion_clean)] if self.betas is not None else None
+        seqlen_wo = motion_w_o.shape[0]
+        #random=torch.randint(0, int(seqlen - self.input_motion_length), (1,))[0] if seqlen > self.input_motion_length else 0
+        #sequence padding or random cropping to fit input length
+
+        if seqlen_wo <= self.input_motion_length:
+            if seqlen_wo > 0:
+                frames_to_add = self.input_motion_length - seqlen_wo
+                last_frame_wo = motion_w_o[-1:]
+                padding_wo = last_frame_wo.repeat(frames_to_add, 1)
+                motion_w_o = torch.cat([motion_w_o, padding_wo], dim=0)
+        else:
+            motion_w_o = motion_w_o[0:self.input_motion_length]
+
+        """
+        # Normalization
+        if not self.no_normalization:
+            motion = (motion - self.mean) / (self.std + 1e-8)
+        """
+
+        return motion.float(), motion_w_o.float(), beta
 
     
 
@@ -147,10 +205,10 @@ def load_data(motion_path, split, keypointtype="openpose",**kwargs):
                     #motion with orthosis
                     if keypointtype=="6d":
                         file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")
-                        motion_clean=load_6drotations(file_path, motion_clean)
+                        motion_clean,_=load_6drotations(file_path, motion_clean)
                         no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
                         file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")
-                        motion_w_o=load_6drotations(file_path_wo, motion_w_o)
+                        motion_w_o,_=load_6drotations(file_path_wo, motion_w_o)
                     elif keypointtype=="openpose" or keypointtype=="smpl":
                         if keypointtype=="openpose":
                             file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
@@ -166,11 +224,36 @@ def load_data(motion_path, split, keypointtype="openpose",**kwargs):
                         raise ValueError(f"Unknown keypoint type: {keypointtype}")
         if not motion_clean:
             raise FileNotFoundError(f"No files found in directory: {motion_path}")
+        return motion_clean, motion_w_o
     elif split == "test":
-        raise NotImplementedError("Test split loading not implemented yet.")
+        motion_clean =[]
+        motion_w_o=[]
+        betas=[] if keypointtype=="6d" else None
+        for patient in sorted(os.listdir(motion_path)):
+            for file in sorted(os.listdir(os.path.join(motion_path, patient))):
+                take=file.split('_')
+                if take[1]=='c1':
+                    #motion with orthosis
+                    if keypointtype=="6d":
+                        file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")
+                        motion_clean.append(torch.tensor(np.load(file_path), dtype=torch.float32))
+                        no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
+                        file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")
+                        motion_w_o,beta=load_6drotations(file_path_wo, motion_w_o)
+                        betas.append(beta)
+                    elif keypointtype=="openpose" or keypointtype=="smpl":
+                        if keypointtype=="openpose":
+                            file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
+                            no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
+                            file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
+                        elif keypointtype=="smpl":
+                            raise NotImplementedError("SMPL keypoints not implemented for test split.")
+                        motion_clean.append(torch.tensor(np.load(file_path), dtype=torch.float32))
+                        motion_w_o=load_pure_keypoints(file_path_wo, motion_w_o, keypointtype)
+                    else:
+                        raise ValueError(f"Unknown keypoint type: {keypointtype}")
+        return motion_clean, motion_w_o, betas
 
-
-    return motion_clean, motion_w_o
 
 
 def get_dataloader(

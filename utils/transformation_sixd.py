@@ -56,17 +56,26 @@ def smplx_to_6d(input_path, output_path=None):
     motion={"motion_6d": smpl_poses_6d_flat.numpy(), "transl": transl.numpy(), "betas": betas.numpy()}
     return motion
 
-def sixd_to_smplx(input_path, output_path):
+def sixd_to_smplx(data):
     #TODO: how to handle betas? Load 
     #TODO read kid/adult smplx model correctly
     C.smplx_models = "smpl_models/"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # 1. Load the 6D rotation and translation data from the .npz file
-    data = np.load(input_path)
+    #data = np.load(input_path)
+
+    #prepare betas
+
+
     motion_6d_flat = torch.from_numpy(data['motion_6d']).float().to(device)
     transl = torch.from_numpy(data['transl']).float().to(device)
     num_frames = motion_6d_flat.shape[0]
-    betas = torch.from_numpy(data['betas']).float().to(device) if 'betas' in data else torch.zeros(num_frames, 11, device=device)
+    if 'betas' in data:
+        fr=int(data['betas'].shape[0]/2)
+        betas=data['betas'][fr,:] 
+        betas = torch.from_numpy(betas).float().to(device)
+    else: 
+        betas=torch.zeros(num_frames, 11, device=device)
 
     # 2. Convert 6D rotations back to axis-angle
     # Reshape from (frames, 132) to (frames * 22, 6) for batch conversion
@@ -79,7 +88,7 @@ def sixd_to_smplx(input_path, output_path):
         'root_orient': motion_aa_flat[:, :3],    # First 3 values are the root rotation
         'pose_body': motion_aa_flat[:, 3:66],  # The rest are the body joint rotations
         'trans': transl, # Use the loaded translation
-        'betas': betas
+        'betas': betas #(11) or (10)
     }
     # 4. Instantiate body model and perform forward kinematics
     print("Performing forward kinematics to calculate joint positions...")
@@ -124,7 +133,7 @@ def sixd_to_smplx(input_path, output_path):
         output = smpl_layer(
             poses_body=body_pose_torch[i:i+1],
             poses_root=global_orient_torch[i:i+1],
-            betas=betas_torch[i:i+1],
+            betas=betas_torch,
             trans=transl_torch[i:i+1]
         )
         # Unpack the output tuple - joints are the second element
@@ -136,12 +145,14 @@ def sixd_to_smplx(input_path, output_path):
     all_joints=all_joints[:,:22,:]
     # Extract the 3D joint positions for the 22 SMPL joints
     keypoints_3d = all_joints
+    return keypoints_3d
 
-    # 5. Save the reconstructed keypoints
+
+    """# 5. Save the reconstructed keypoints
     output_path = os.path.join(output_path, "reconstructed_keypoints_3d_ref.npy")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     np.save(output_path, keypoints_3d)
 
     print(f"\nSuccessfully reconstructed 3D keypoints.")
     print(f"Output shape: {keypoints_3d.shape}")
-    print(f"Saved result to: {output_path}")
+    print(f"Saved result to: {output_path}")"""

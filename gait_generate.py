@@ -6,7 +6,8 @@ from tqdm import tqdm
 
 from utils.parser_util import sample_args
 from utils.model_util import create_model_and_diffusion, load_model_wo_clip
-from data_loaders.dataloader3d import load_data, MotionDataset, drop_duplicate_frames, subtract_root, get_dataloader
+from data_loaders.dataloader3d import TestDataset, load_data, MotionDataset, get_dataloader
+from utils.transformation_sixd import smplx_to_6d, sixd_to_smplx
 
 def load_diffusion_model(args):
     """
@@ -32,11 +33,12 @@ def prepare_conditional_motion(file_path, input_motion_length, keypointtype):
     """
     Loads and preprocesses the conditional motion data from a given file path.
     """
-    clean, cond = load_data(file_path, split="train", keypointtype=keypointtype)
-    dataset = MotionDataset(
+    clean, cond, betas = load_data(file_path, split="test", keypointtype=keypointtype)
+    dataset = TestDataset(
         "gait",
         clean,
         cond,
+        betas=betas,
         input_motion_length=input_motion_length,
     )
 
@@ -109,10 +111,10 @@ def main():
         # Create an output directory if it doesn't exist
     if not args.output_dir:
         name, _ = os.path.splitext(os.path.basename(args.model_path))
-        args.output_dir = os.path.join(os.path.dirname(args.model_path), "generated_motions"+name)
         args.output_dir="results/"
+    os.makedirs(args.output_dir, exist_ok=True)
     for i, batch in enumerate(tqdm(dataloader)):
-        reference, condition = batch
+        reference, condition, betas = batch
         condition=condition.to(device)
         print(reference.shape, condition.shape)  # shapes of the batch
         print(f"Condition motion shape: {condition.shape}")
@@ -121,6 +123,12 @@ def main():
         generated_motion = sample(model, diffusion, condition, args)
         generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
         reference_np=reference.squeeze(0).cpu().numpy()
+        if args.keypointtype=='6d':
+            betas_np=betas.squeeze(0).cpu().numpy()
+            generated_motion_np=sixd_to_smplx({'motion_6d': generated_motion_np[:,3:], 'transl': generated_motion_np[:,:3], 'betas': betas_np})
+        elif args.keypointtype=='openpose':
+            assert generated_motion_np.shape[1]==69
+            generated_motion_np=generated_motion_np.reshape(-1,23, 3)
         ref_path=os.path.join(args.output_dir, "reference_motion_"+str(i)+".npy")
         gen_path=os.path.join(args.output_dir, "generated_motion_"+str(i)+".npy")
         np.save(ref_path, reference_np)
