@@ -99,7 +99,6 @@ def sixd_to_smplx(data):
             model_type="smplx", 
             gender="neutral", 
             device=C.device,
-            num_betas=11,
             use_pca=True, 
             num_pca_comps=12,  
             flat_hand_mean=False
