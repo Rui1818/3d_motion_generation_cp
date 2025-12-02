@@ -44,7 +44,7 @@ for config in "${CONFIGS[@]}"; do
             --model_path "$FULL_MODEL_PATH" \
             --input_motion_length "$INPUT_LENGTH" \
             --keypointtype "$KEYPOINT_TYPE" \
-            --output_dir "$OUTPUT_PATH"
+            --output_dir "$OUTPUT_PATH" \
             
     done
 done
