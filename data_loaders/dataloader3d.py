@@ -235,7 +235,7 @@ def load_data(motion_path, split, keypointtype="openpose",**kwargs):
                 if take[1]=='c1':
                     #motion with orthosis
                     if keypointtype=="6d":
-                        file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")
+                        file_path = os.path.join(motion_path, patient, file, "split_subjects", "0", "fit-smplx", "smpl-keypoints-3d_cut.npy")
                         motion_clean.append(torch.tensor(np.load(file_path), dtype=torch.float32))
                         no_orth_path = take[0]+'_c2_'+"_".join(take[2:])
                         file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")

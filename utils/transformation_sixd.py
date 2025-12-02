@@ -157,3 +157,67 @@ def sixd_to_smplx(data):
     print(f"\nSuccessfully reconstructed 3D keypoints.")
     print(f"Output shape: {keypoints_3d.shape}")
     print(f"Saved result to: {output_path}")"""
+
+def create_smpl_keypoints(path):
+    data = np.load(path)
+    
+    # smplx parameters
+    body_pose = data['body_pose']           # (419, 63)
+    print(body_pose.shape)
+    global_orient = data['global_orient']   # (419, 3)
+    betas = data['betas']                   # (419, 11)
+    transl = data['transl']                 # (419, 3)
+    left_hand_pose = data['left_hand_pose'] # (419, 12) - PCA components
+    right_hand_pose = data['right_hand_pose'] # (419, 12) - PCA components
+    
+    # Create SMPL-X layer with PCA hand pose support
+    if betas.shape[1]==11:
+        smpl_layer = SMPLLayer(
+            model_type="smplx", 
+            gender="neutral", 
+            device=C.device,
+            age="kid",
+            kid_template_path=r"C:\Users\Rui\Vorlesungskript\Master\Thesis\test\smpl_models\smplx\smplx_kid_template.npy",
+            use_pca=True, 
+            num_pca_comps=12,  
+            flat_hand_mean=False
+        )
+        smpl_layer.num_betas += 1
+    else:
+        smpl_layer = SMPLLayer(
+            model_type="smplx", 
+            gender="neutral", 
+            device=C.device,
+            use_pca=True, 
+            num_pca_comps=12,  
+            flat_hand_mean=False
+        )
+
+    num_frames = body_pose.shape[0]
+    all_joints = []
+    
+    # Convert numpy arrays to torch tensors
+    body_pose_torch = torch.from_numpy(body_pose).float().to(C.device)
+    global_orient_torch = torch.from_numpy(global_orient).float().to(C.device)
+    betas_torch = torch.from_numpy(betas).float().to(C.device)
+    transl_torch = torch.from_numpy(transl).float().to(C.device)
+    left_hand_pose_torch = torch.from_numpy(left_hand_pose).float().to(C.device)
+    right_hand_pose_torch = torch.from_numpy(right_hand_pose).float().to(C.device)
+
+    for i in range(num_frames):
+        output = smpl_layer(
+            poses_body=body_pose_torch[i:i+1],
+            poses_root=global_orient_torch[i:i+1],
+            betas=betas_torch[i:i+1],
+            trans=transl_torch[i:i+1],
+            poses_left_hand=left_hand_pose_torch[i:i+1],
+            poses_right_hand=right_hand_pose_torch[i:i+1]
+        )
+        # Unpack the output tuple - joints are the second element
+        _, joints = output
+        joints_np = joints.cpu().numpy()  # Shape: (1, num_joints, 3)
+        all_joints.append(joints_np[0])
+    
+    all_joints = np.array(all_joints)  # Shape: (num_frames, num_joints, 3)
+    all_joints=all_joints[:,:22,:]  #only smpl body joints
+    return all_joints
