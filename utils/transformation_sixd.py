@@ -75,7 +75,8 @@ def sixd_to_smplx(data):
         betas=data['betas'][fr,:] 
         betas = torch.from_numpy(betas).float().to(device)
     else: 
-        betas=torch.zeros(num_frames, 11, device=device)
+        betas=torch.zeros(num_frames, device=device)
+    #betas is one dimensional now
 
     # 2. Convert 6D rotations back to axis-angle
     # Reshape from (frames, 132) to (frames * 22, 6) for batch conversion
@@ -92,7 +93,7 @@ def sixd_to_smplx(data):
     }
     # 4. Instantiate body model and perform forward kinematics
     print("Performing forward kinematics to calculate joint positions...")
-    if betas.shape[1]!=11:
+    if betas.shape!=11:
         print("Using generic SMPL-X model for forward kinematics.")
         smpl_layer = SMPLLayer(
             model_type="smplx", 
