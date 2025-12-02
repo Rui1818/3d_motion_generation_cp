@@ -2,16 +2,17 @@
 
 # ================= CONFIGURATION =================
 
-# 1. List your configuration folder names here
-CONFIGS=("newconfig1" "newconfig2")
-
+# 1. Automatically find all configuration folders in the training directory.
+#    This removes the need to list them manually, and excludes 'overfit_run'.
+#CONFIGS=($(find my_training -mindepth 1 -maxdepth 1 -not -path "my_training/overfit_run" -type d -exec basename {} \;))
+CONFIGS=("config13")
 # 2. List your model checkpoint names here (without the .pt extension)
 # The script assumes these specific filenames exist inside every config folder
-MODELS=("model000080002" "model000090000" "model000100000")
+MODELS=("model000080002" "model000070213" "model000059813" "model000050713" "model000045513" "model000040313" "model000035113" "model000029913" "model000024713" "model000019513" "model000014313")
 
 # 3. Common settings
 INPUT_LENGTH=240
-KEYPOINT_TYPE="openpose"
+KEYPOINT_TYPE="6d"
 BASE_TRAINING_DIR="my_training"
 BASE_RESULTS_DIR="results"
 

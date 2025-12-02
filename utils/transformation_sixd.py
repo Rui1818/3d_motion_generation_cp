@@ -93,7 +93,7 @@ def sixd_to_smplx(data):
     }
     # 4. Instantiate body model and perform forward kinematics
     print("Performing forward kinematics to calculate joint positions...")
-    if betas.shape!=11:
+    if betas.shape[0]==10:
         print("Using generic SMPL-X model for forward kinematics.")
         smpl_layer = SMPLLayer(
             model_type="smplx", 
@@ -111,7 +111,7 @@ def sixd_to_smplx(data):
             gender="neutral", 
             device=C.device,
             age="kid",
-            kid_template_path=r"C:\Users\Rui\Vorlesungskript\Master\Thesis\test\smpl_models\smplx\smplx_kid_template.npy",
+            kid_template_path="smpl_models/smplx/smplx_kid_template.npy",
             use_pca=True, 
             num_pca_comps=12,  
             flat_hand_mean=False
@@ -171,13 +171,13 @@ def create_smpl_keypoints(path):
     right_hand_pose = data['right_hand_pose'] # (419, 12) - PCA components
     
     # Create SMPL-X layer with PCA hand pose support
-    if betas.shape[1]==11:
+    if betas.shape[0]==11:
         smpl_layer = SMPLLayer(
             model_type="smplx", 
             gender="neutral", 
             device=C.device,
             age="kid",
-            kid_template_path=r"C:\Users\Rui\Vorlesungskript\Master\Thesis\test\smpl_models\smplx\smplx_kid_template.npy",
+            kid_template_path="smplx/smplx_kid_template.npy",
             use_pca=True, 
             num_pca_comps=12,  
             flat_hand_mean=False
