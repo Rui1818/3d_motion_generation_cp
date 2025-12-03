@@ -157,38 +157,28 @@ class TensorBoardOutputFormat(KVWriter):
     """
 
     def __init__(self, dir):
+        import tensorflow as tf
+
         os.makedirs(dir, exist_ok=True)
         self.dir = dir
         self.step = 1
-        prefix = "events"
-        path = osp.join(osp.abspath(dir), prefix)
-        import tensorflow as tf
-        from tensorflow.core.util import event_pb2
-        from tensorflow.python import pywrap_tensorflow
-        from tensorflow.python.util import compat
-
         self.tf = tf
-        self.event_pb2 = event_pb2
-        self.pywrap_tensorflow = pywrap_tensorflow
-        self.writer = pywrap_tensorflow.EventsWriter(compat.as_bytes(path))
+        self.writer = tf.summary.create_file_writer(dir)
 
     def writekvs(self, kvs):
-        def summary_val(k, v):
-            kwargs = {"tag": k, "simple_value": float(v)}
-            return self.tf.Summary.Value(**kwargs)
-
-        summary = self.tf.Summary(value=[summary_val(k, v) for k, v in kvs.items()])
-        event = self.event_pb2.Event(wall_time=time.time(), summary=summary)
-        event.step = (
-            self.step
-        )  # is there any reason why you'd want to specify the step?
-        self.writer.WriteEvent(event)
-        self.writer.Flush()
+        with self.writer.as_default():
+            for k, v in kvs.items():
+                try:
+                    self.tf.summary.scalar(k, float(v), step=self.step)
+                except (ValueError, TypeError):
+                    # For non-scalar values, we can log them as text.
+                    self.tf.summary.text(k, str(v), step=self.step)
+        self.writer.flush()
         self.step += 1
 
     def close(self):
         if self.writer:
-            self.writer.Close()
+            self.writer.close()
             self.writer = None
 
 
