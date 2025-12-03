@@ -23,12 +23,13 @@ from utils import dist_util
 
 
 class TrainLoop:
-    def __init__(self, args, model, diffusion, data):
+    def __init__(self, args, model, diffusion, data, val_data=None):
         self.args = args
         self.dataset = args.dataset
         self.model = model
         self.diffusion = diffusion
         self.data = data
+        self.val_data = val_data
         self.batch_size = args.batch_size
         self.lr = args.lr
         self.log_interval = args.log_interval
@@ -115,10 +116,21 @@ class TrainLoop:
             if epoch % self.save_interval == 0:
                 self.save()
             if epoch % self.log_interval == 0:
+                # Evaluate on validation set
+                if self.val_data is not None:
+                    print(f"Evaluating on validation set...")
+                    self.evaluate_validation()
+
+                # Print and log training metrics
                 for k, v in logger.get_current().name2val.items():
                     if k == "loss":
                         print("epoch[{}]: loss[{:0.5f}]".format(epoch, v))
-                        print("lr:", self.lr)
+                    elif k == "val_loss":
+                        print("epoch[{}]: val_loss[{:0.5f}]".format(epoch, v))
+                print("lr:", self.lr)
+
+                # Dump all metrics to logger (including TensorBoard)
+                logger.dumpkvs()
 
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
@@ -176,6 +188,44 @@ class TrainLoop:
     def log_step(self):
         logger.logkv("step", self.step + self.resume_step)
         logger.logkv("samples", (self.step + self.resume_step + 1) * self.global_batch)
+
+    def evaluate_validation(self):
+        """
+        Evaluate the model on the validation dataset and log the validation loss.
+        """
+        if self.val_data is None:
+            return
+
+        self.model.eval()
+        val_losses = []
+
+        with torch.no_grad():
+            for motion, cond in self.val_data:
+                motion = motion.to(self.device)
+                cond = cond.to(self.device)
+
+                # Sample random timesteps
+                t, weights = self.schedule_sampler.sample(motion.shape[0], dist_util.dev())
+
+                # Compute validation losses
+                compute_losses = functools.partial(
+                    self.diffusion.training_losses,
+                    self.ddp_model,
+                    motion,
+                    t,
+                    cond,
+                    dataset=self.data.dataset,
+                )
+
+                losses = compute_losses()
+                loss = (losses["loss"] * weights).mean()
+                val_losses.append(loss.item())
+
+        # Log average validation loss
+        avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0.0
+        logger.logkv("val_loss", avg_val_loss)
+
+        self.model.train()
 
     def ckpt_file_name(self):
         return f"model{(self.step+self.resume_step):09d}.pt"

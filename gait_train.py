@@ -14,15 +14,19 @@ from utils import dist_util
 
 from utils.model_util import create_model_and_diffusion
 from utils.parser_util import train_args
+from diffusion import logger
 
 
-def train_diffusion_model(args, dataloader):
+def train_diffusion_model(args, dataloader, val_dataloader=None):
     print("creating model and diffusion...")
+    logger.configure(
+        dir=args.save_dir,
+        format_strs=["stdout", "log", "csv", "tensorboard"]
+    )
     args.arch = args.arch[len("diffusion_") :]
 
     num_gpus = torch.cuda.device_count()
     args.num_workers = args.num_workers * num_gpus
-
     model, diffusion = create_model_and_diffusion(args)
 
     if num_gpus > 1:
@@ -42,7 +46,7 @@ def train_diffusion_model(args, dataloader):
         )
 
     print("Training...")
-    TrainLoop(args, model, diffusion, dataloader).run_loop()
+    TrainLoop(args, model, diffusion, dataloader, val_dataloader).run_loop()
     print("Done.")
 
 
@@ -88,8 +92,29 @@ def main():
     #    dataloader
     # )  # the input lr_anneal_steps is by epoch, here convert it to the number of steps
 
+    # Load validation dataset
+    print("Loading validation dataset...")
+    test_dataset_path = args.dataset_path.replace("mydataset", "test_dataset")
+    val_motion_clean, val_motion_w_o = load_data(
+        test_dataset_path,
+        "train",  # Use "train" split mode for test_dataset folder
+        keypointtype=args.keypointtype,
+    )
+
+    val_dataset = MotionDataset(
+        args.dataset,
+        val_motion_clean,
+        val_motion_w_o,
+        input_motion_length=args.input_motion_length,
+    )
+    print("validation dataset size:", len(val_dataset))
+
+    val_dataloader = get_dataloader(
+        val_dataset, "test", batch_size=args.batch_size, num_workers=1
+    )
+
     #model_type = args.arch.split("_")[0]
-    train_diffusion_model(args, dataloader)
+    train_diffusion_model(args, dataloader, val_dataloader)
     """
     if model_type == "diffusion":
         train_diffusion_model(args, dataloader)
