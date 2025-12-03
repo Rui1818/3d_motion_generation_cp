@@ -32,7 +32,9 @@ def train_diffusion_model(args, dataloader, val_dataloader=None):
     if num_gpus > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         dist_util.setup_dist()
-        model = torch.nn.DataParallel(model).cuda()
+        # Move model to cuda:0 first before DataParallel
+        model = model.to(torch.device('cuda:0'))
+        model = torch.nn.DataParallel(model)
         print(
             "Total params: %.2fM"
             % (sum(p.numel() for p in model.module.parameters()) / 1000000.0)
