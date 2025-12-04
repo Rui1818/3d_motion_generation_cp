@@ -5,8 +5,8 @@
 DATASET_PATH="mydataset"
 DATASET_NAME="gait"
 BATCH_SIZE=8
-SAVE_INTERVAL=100
-LOG_INTERVAL=50
+SAVE_INTERVAL=250
+LOG_INTERVAL=125
 DEVICE=0
 NUM_WORKERS=4
 ARCH="diffusion_DiffMLP"
@@ -74,34 +74,41 @@ run_training() {
 
 # Openpose keypoints
 
-run_training "my_training/newconfig1" 256 6 1e-4 80000 2e-4 openpose 0 0 0 69
-run_training "my_training/newconfig2" 512 6 1e-4 80000 2e-4 openpose 0 0 0 69
-run_training "my_training/newconfig3" 256 8 1e-4 80000 2e-4 openpose 0 0 0 69
-run_training "my_training/newconfig4" 512 8 1e-4 80000 2e-4 openpose 0 0 0 69
-run_training "my_training/newconfig5" 256 4 1e-4 80000 2e-4 openpose 0 0 0 69
-run_training "my_training/newconfig6" 512 4 1e-4 80000 2e-4 openpose 0 0 0 69
+run_training "my_training/config1" 256 8 1e-4 200000 2e-4 openpose 0 0 0 69
+run_training "my_training/config2" 512 8 1e-4 200000 2e-4 openpose 0 0 0 69
+
 #velocity
-run_training "my_training/config7" 256 6 1e-4 80000 2e-4 openpose 0 0.5 0 69
-run_training "my_training/config8" 512 6 1e-4 80000 2e-4 openpose 0 0.5 0 69
-run_training "my_training/config9" 256 8 1e-4 80000 2e-4 openpose 0 0.5 0 69
-run_training "my_training/config10" 512 8 1e-4 80000 2e-4 openpose 0 0.5 0 69
-run_training "my_training/config11" 256 4 1e-4 80000 2e-4 openpose 0 0.5 0 69
-run_training "my_training/config12" 512 4 1e-4 80000 2e-4 openpose 0 0.5 0 69
+run_training "my_training/config3" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69
+run_training "my_training/config4" 512 12 1e-4 200000 2e-4 openpose 0 1 0 69
+
+#cond_mask_prob 0.1
+run_training "my_training/config5" 512 12 1e-4 500000 2e-4 openpose 0.1 0 0 69
+run_training "my_training/config6" 512 8 1e-4 200000 2e-4 openpose 0.1 0 0 69
+run_training "my_training/config7" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69
 
 # 6d rotations
-run_training "my_training/config13" 256 6 1e-4 80000 2e-4 6d 0 0 0 135
-run_training "my_training/config14" 512 6 1e-4 80000 2e-4 6d 0 0 0 135
-run_training "my_training/config15" 256 8 1e-4 80000 2e-4 6d 0 0 0 135
-run_training "my_training/config16" 512 8 1e-4 80000 2e-4 6d 0 0 0 135
-run_training "my_training/config17" 256 4 1e-4 80000 2e-4 6d 0 0 0 135
-run_training "my_training/config18" 512 4 1e-4 80000 2e-4 6d 0 0 0 135
+run_training "my_training/config8" 256 8 1e-4 200000 2e-4 6d 0 0 0 135
+run_training "my_training/config9" 512 8 1e-4 500000 2e-4 6d 0 0 0 135
+run_training "my_training/config10" 256 4 1e-4 200000 2e-4 6d 0 0 0 135
+run_training "my_training/config11" 512 4 1e-4 200000 2e-4 6d 0 0 0 135
 #velocity
-run_training "my_training/config19" 256 6 1e-4 80000 2e-4 6d 0 0.5 0.1 135
-run_training "my_training/config20" 512 6 1e-4 80000 2e-4 6d 0 0.5 0.1 135
-run_training "my_training/config21" 256 8 1e-4 80000 2e-4 6d 0 0.5 0.1 135
-run_training "my_training/config22" 512 8 1e-4 80000 2e-4 6d 0 0.5 0.1 135
-run_training "my_training/config23" 256 8 1e-4 80000 2e-4 6d 0 0.5 0.1 135
-run_training "my_training/config24" 512 8 1e-4 80000 2e-4 6d 0 0.5 0.1 135
+run_training "my_training/config12" 256 6 1e-4 200000 2e-4 6d 0 0.5 0.5 135
+run_training "my_training/config13" 512 6 1e-4 200000 2e-4 6d 0 0.5 0.5 135
+run_training "my_training/config14" 256 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135
+
+#velocity + cond_mask_prob 0.1
+run_training "my_training/config15" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135
+run_training "my_training/config16" 256 12 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135
+run_training "my_training/config17" 512 12 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135
+
+
+#run_training "my_training/config25" 512 12 1e-4 200000 2e-4 openpose 0 0 0 69
+#run_training "my_training/config26" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69
+#run_training "my_training/config27" 512 12 1e-4 200000 2e-4 openpose 0 1 0 69
+#run_training "my_training/config28" 512 12 1e-4 200000 2e-4 6d 0 0 0 135
+#run_training "my_training/config29" 512 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135
+#run_training "my_training/config30" 512 12 1e-4 200000 2e-4 6d 0 0.5 0.5 135
+
 
 # Config 4: Add more configs as you like...
 # run_training "my_training/config4_..." ... ... ...
