@@ -19,6 +19,10 @@ class BODY25Skeletons(Skeletons):
         (11, 22), (22, 23), (11, 24)
     ])
 
+    def __init__(self, joints, **kwargs):
+        kwargs.setdefault('color', (0.5, 0.0, 0.0, 1.0))
+        super().__init__(joints, __class__.SKELETON, **kwargs)
+
 class SMPLSkeletons(Skeletons):
     """
     Skeleton definition for the first 22 SMPL joints (Pelvis to Wrists).
@@ -50,7 +54,7 @@ class SMPLSkeletons(Skeletons):
     ])
 
     def __init__(self, joints, **kwargs):
-        kwargs['color'] = (0.5, 0.0, 0.0, 1.0)
+        kwargs.setdefault('color', (0.5, 0.0, 0.0, 1.0))
         super().__init__(joints, __class__.SKELETON, **kwargs)
 
 def add_keypoints(data, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
@@ -65,35 +69,43 @@ def add_keypoints(data, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
         color=color
     )
 
-    viewer.scene.add(keypoints_pc)
+    if keypoints.shape[1]==25:
+        skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
+        viewer.scene.add(skeleton)
+    elif keypoints.shape[1]==22:
+        skeleton=SMPLSkeletons(keypoints, name=thisname, color=color)
+        viewer.scene.add(skeleton)
+    elif keypoints.shape[1]==23:
+        keypoints=repair_data(keypoints)
+        skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
+        viewer.scene.add(skeleton)
+    else:
+        viewer.scene.add(keypoints_pc)
     return
 
 def subtract_root(data):
     #only after frames have been cut
-    root = (data[0,8,:]+data[0, 9, :])/2
-    data=np.delete((data - root), (1,8), axis=1)
+    if data.shape[1]==25:
+        root = (data[0,8,:]+data[0, 9, :])/2
+        data=np.delete((data - root), (1,8), axis=1)
+    elif data.shape[1]==22:
+        root = data[0,0,:]
+        data=data - root
     return data
-def subtract_root_smpl(data):
-    #only after frames have been cut
-    root = data[0,0,:]
-    data=(data - root)
-    return data
-
-def add_skeleton(data, viewer, thisname, color=(1.0, 0.0, 0.0, 1)): 
-    # Load keypoints
-    keypoints = data
-    keypoints=keypoints[..., :3]
-
-    skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
-    viewer.scene.add(skeleton)
-    return
 
 def repair_data(data):
-    midhip = (data[:,8,:]+data[:, 9, :])/2
-    neck= (data[:,2,:]+data[:, 5, :])/2
-    data[:,8,:]=midhip
-    data[:,1,:]=neck
+    if(data.shape[1]==23):
+        midhip = (data[:,7,:]+data[:, 10, :])/2
+        neck= (data[:,1,:]+data[:, 4, :])/2
+        data=np.insert(data, 7, midhip, axis=1)
+        data=np.insert(data, 1, neck, axis=1)
+    elif(data.shape[1]==25): 
+        midhip = (data[:,8,:]+data[:, 9, :])/2
+        neck= (data[:,2,:]+data[:, 5, :])/2
+        data[:,8,:]=midhip
+        data[:,1,:]=neck
     return data
+
     
 
 if __name__ == "__main__":
@@ -107,17 +119,31 @@ if __name__ == "__main__":
                     "test_dataset/gait_809/20250819_c2_a4_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy",
                     "test_dataset/gait_809/20250819_c2_a4_Take2/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy",
                     "test_dataset/gait_809/20250819_c2_a5_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy",]
-    modellist=["model000080002", "model000070213", "model000059813"]
+    modellist=["model000080002", 
+               "model000070213", 
+               "model000059813"
+               ]
     C.smplx_models = "smpl_models/"
-    root="results/openpose/"
+    # Set the playback speed to 30 frames per second.
+    C.playback_fps = 30
+    configlist=[
+        "config25",
+        "config26",
+        "config27",
+        "config28",
+        "config29",
+        "config30",
+    ]
+
+    root="results/config25_30/"
     v=Viewer()
     reference=None
-    i=2
-    conf="config4"
+    i=5
+    #conf="config16"
     for config in os.listdir(root):
-        config_path=os.path.join(root, config)
-        if config!=conf:
+        if config not in configlist:
             continue
+        config_path=os.path.join(root, config)
         for model in os.listdir(config_path):
             #if model in modellist:
             model_path=os.path.join(config_path, model)
@@ -125,15 +151,17 @@ if __name__ == "__main__":
                 reference_path=os.path.join(model_path, "reference_motion_"+str(i)+".npy")
                 reference=np.load(reference_path)
                 reference=repair_data(reference)
-                reference=subtract_root_smpl(reference)
+                reference=subtract_root(reference)
+                print(reference.shape)
                 condition=np.load(conditionpaths[i])
                 condition=subtract_root(condition)
                 add_keypoints(condition, v, "Condition Motion", color=(0.0, 1.0, 0.0, 1))
                 add_keypoints(reference, v, "Reference Motion", color=(0.0, 0.0, 1.0, 1))
             condition_path=os.path.join(model_path, "generated_motion_"+str(i)+".npy")
             gen=np.load(condition_path)
+            gen=subtract_root(gen)
             # Create a viewer instance
-            add_keypoints(gen, v, "Generated Motion_"+model, color=(1.0, 0.0, 0.0, 1))
+            add_keypoints(gen, v, "Generated Motion_"+config+model[-5:], color=(0.5, 0.0, 0.0, 1))
             
     v.run()
 

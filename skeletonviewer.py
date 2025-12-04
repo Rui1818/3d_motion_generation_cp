@@ -63,6 +63,7 @@ if __name__ == "__main__":
     C.smplx_models = "smpl_models/"
     keypoints=np.load("mydataset/gait_052/20250912_c1_a1_Take1\\split_subjects\\0\\fit-smplx\\new-smpl-keypoints_cut.npy")
     #keypoints=np.load("mydataset/gait_052/20250912_c1_a1_Take1\\split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy")
+    keypoints=np.load("results/openpose/config1/model000014313/reference_motion_0.npy")
     #keypoints=repair_data(keypoints)
     
     v=Viewer()

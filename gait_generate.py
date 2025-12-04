@@ -8,6 +8,7 @@ from utils.parser_util import sample_args
 from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 from data_loaders.dataloader3d import TestDataset, load_data, MotionDataset, get_dataloader
 from utils.transformation_sixd import smplx_to_6d, sixd_to_smplx
+from scipy.ndimage import gaussian_filter1d
 
 def load_diffusion_model(args):
     """
@@ -125,6 +126,7 @@ def main():
         reference_np=reference.squeeze(0).cpu().numpy()
         if args.keypointtype=='6d':
             betas_np=betas.squeeze(0).cpu().numpy()
+            generated_motion_np = gaussian_filter1d(generated_motion_np, sigma=1, axis=0)
             generated_motion_np=sixd_to_smplx({'motion_6d': generated_motion_np[:,3:], 'transl': generated_motion_np[:,:3], 'betas': betas_np})
         elif args.keypointtype=='openpose':
             assert generated_motion_np.shape[1]==69

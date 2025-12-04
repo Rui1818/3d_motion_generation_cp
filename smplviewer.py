@@ -282,6 +282,6 @@ if __name__ == "__main__":
     smplseq2= os.path.join(root, ref_take, smplpart)
     #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
-    visualiza_gait_batch(root+"/gait_753")
-    #visualize_gait('test.npy', 'mydataset/gait_011/20251107_c1_a1_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy')
+    #visualiza_gait_batch(root+"/gait_753")
+    visualize_gait('test.npy', 'mydataset/gait_011/20251107_c1_a1_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy')
 
