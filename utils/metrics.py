@@ -4,6 +4,33 @@
 import numpy as np
 import torch
 
+import numpy as np
+from scipy.spatial.distance import euclidean
+from fastdtw import fastdtw
+
+def calculate_motion_dtw(motion1, motion2):
+    """
+    Calculates DTW distance between two human motion sequences.
+    
+    Args:
+        motion1 (np.ndarray): Shape (frames_A, joints, 3)
+        motion2 (np.ndarray): Shape (frames_B, joints, 3)
+        
+    Returns:
+        float: The DTW distance.
+        list: The warping path (list of tuples aligning frame i to frame j).
+    """
+    
+    # 1. Input Validation
+    if motion1.shape[1:] != motion2.shape[1:]:
+        raise ValueError("Both motions must have the same number of joints and dimensions.")
+    
+    seq_a = motion1.reshape(motion1.shape[0], -1)
+    seq_b = motion2.reshape(motion2.shape[0], -1)
+    distance, path = fastdtw(seq_a, seq_b, dist=euclidean)
+    
+    return distance, path
+
 
 def pred_jitter(
     predicted_position,

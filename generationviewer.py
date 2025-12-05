@@ -133,9 +133,10 @@ if __name__ == "__main__":
         "config28",
         "config29",
         "config30",
+        "config30_s"
     ]
 
-    root="results/config25_30/"
+    root="results/"
     v=Viewer()
     reference=None
     i=5

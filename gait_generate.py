@@ -7,7 +7,7 @@ from tqdm import tqdm
 from utils.parser_util import sample_args
 from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 from data_loaders.dataloader3d import TestDataset, load_data, MotionDataset, get_dataloader
-from utils.transformation_sixd import smplx_to_6d, sixd_to_smplx
+from utils.transformation_sixd import sixd_to_smplx
 from scipy.ndimage import gaussian_filter1d
 
 def load_diffusion_model(args):
@@ -115,6 +115,9 @@ def main():
         args.output_dir="results/"
     os.makedirs(args.output_dir, exist_ok=True)
     for i, batch in enumerate(tqdm(dataloader)):
+        #referenceshape: (1, frames, 22, 3), (1,frames,25,5)
+        #condition shape: (1, frames, 135), (1,frames,69)
+        #betas shape: (1,frames, 10/11),_
         reference, condition, betas = batch
         condition=condition.to(device)
         print(reference.shape, condition.shape)  # shapes of the batch
