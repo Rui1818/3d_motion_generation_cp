@@ -248,7 +248,7 @@ def load_data(motion_path, split, keypointtype="openpose",**kwargs):
                             file_path_wo = os.path.join(motion_path, patient, no_orth_path, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
                         elif keypointtype=="smpl":
                             raise NotImplementedError("SMPL keypoints not implemented for test split.")
-                        motion_clean.append(torch.tensor(np.load(file_path), dtype=torch.float32))
+                        motion_clean=load_pure_keypoints(file_path, motion_clean, keypointtype)
                         motion_w_o=load_pure_keypoints(file_path_wo, motion_w_o, keypointtype)
                     else:
                         raise ValueError(f"Unknown keypoint type: {keypointtype}")
