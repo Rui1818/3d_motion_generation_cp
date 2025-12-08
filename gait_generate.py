@@ -166,6 +166,8 @@ def main():
         try:
             #remove padding
             #generated_motion_np=remove_padding_3d_numpy(generated_motion_np)
+            generated_motion_np=generated_motion_np-generated_motion_np[0,0,:]
+            reference_np=reference_np-reference_np[0,0,:]
             dtw_distance, _ = calculate_motion_dtw(reference_np, generated_motion_np)
             dtw_metrics.append({
                 'sample_id': i,
