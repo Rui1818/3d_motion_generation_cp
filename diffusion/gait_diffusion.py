@@ -45,62 +45,33 @@ class GaitDiffusionModel(GaussianDiffusion):
             **kwargs,
         )
 
-    def masked_l2(self, a, b):
-        #TODO: adjust loss to keypoint type
-        bs, n, c = a.shape
+    def masked_l2(self, a, b, seqlen):
         """
-        #euclidean distance
-        if c==132:
-            loss=(a - b)**2
-            loss=sum_flat(loss)/(n*c)
-            
-            loss = torch.mean(
-                torch.norm(
-                    (a - b).reshape(-1, 6),
-                    2,
-                    1,
-                )
-            )
-        else:
-            
-            loss = torch.mean(
-                torch.norm(
-                    (a - b).reshape(-1, 3),
-                    2,
-                    1,
-                )
-            )
+        Computes the masked L2 loss.
+        The loss is computed only on the frames before the sequence length.
         """
-        loss=(a - b)**2
-        loss=sum_flat(loss)/(n*c)
+        batch, frames, features = a.shape
+        # Create a mask for the sequences
+        indices = torch.arange(frames, device=a.device).unsqueeze(0)
 
-        return loss
+        # mask is a boolean tensor of shape [B, N]
+        mask = indices < seqlen.unsqueeze(1)
 
-    def masked_euclidean_distance(self, a, b):
-        """
-        Calculates the mean Euclidean distance loss between predicted and target vectors.
-        This is often a better choice for structured data like joint positions.
-        """
-        bs, n, c = a.shape
+        # Expand mask to match the shape of a and b: [B, N, C]
+        mask_expanded = mask.unsqueeze(-1).expand_as(a)
 
-        # Determine the dimension of the individual items (e.g., 3 for xyz, 6 for 6D rot)
-        # This logic assumes features are groups of 3 or 6.
-        if c == 132:
-            item_dim = 6
-        elif c == 72 or c == 3:
-            item_dim = 3
-        else:
-            raise ValueError(f"Unexpected features_dim: {c}")
+        # Compute squared error and apply the mask
+        loss = (a - b) ** 2
+        masked_loss = loss * mask_expanded
 
-        # Reshape to group features into vectors: (batch, num_vectors, item_dim)
-        a_vecs = a.reshape(bs, -1, item_dim)
-        b_vecs = b.reshape(bs, -1, item_dim)
-
-        # Calculate the L2 norm (Euclidean distance) for each vector
-        euclidean_distances = torch.norm(a_vecs - b_vecs, dim=-1)
-
-        # Return the mean distance per batch item.
-        return euclidean_distances.mean(dim=-1)
+        # Normalize by the number of valid elements
+        # seqlen has shape [B], so we need to unsqueeze it for broadcasting
+        num_valid_elements = seqlen.unsqueeze(1) * features
+        # Avoid division by zero for sequences of length 0
+        num_valid_elements = torch.max(num_valid_elements, torch.ones_like(num_valid_elements))
+        
+        # Sum the loss over frames and features, then normalize
+        return sum_flat(masked_loss) / num_valid_elements.squeeze(1)
 
     def training_losses(
         self, model, x_start, t, cond, model_kwargs=None, noise=None, dataset=None
@@ -110,6 +81,10 @@ class GaitDiffusionModel(GaussianDiffusion):
             model_kwargs = {}
         if noise is None:
             noise = th.randn_like(x_start)
+
+        seq_len = model_kwargs.get("y", {}).get("seq_len", None)
+        # Now you can use seq_len in your loss calculation
+
         x_t = self.q_sample(x_start, t, noise=noise)
 
         terms = {}
@@ -163,6 +138,7 @@ class GaitDiffusionModel(GaussianDiffusion):
             terms["simple_mse"] = self.masked_l2(
                 target,
                 model_output,
+                seq_len,
             )
 
             if self.lambda_rot_vel > 0.0 or self.lambda_transl_vel > 0.0:
@@ -177,10 +153,12 @@ class GaitDiffusionModel(GaussianDiffusion):
                     terms['rot_vel_mse'] = self.masked_l2(
                         target_rot_vel,
                         model_output_rot_vel,
+                        seq_len - 1, # Velocity has one less frame
                     )
                     terms['transl_vel_mse'] = self.masked_l2(
                         target_transl_vel,
                         model_output_transl_vel,
+                        seq_len - 1, # Velocity has one less frame
                     )
                 else:
                     #keypoints only
@@ -189,6 +167,7 @@ class GaitDiffusionModel(GaussianDiffusion):
                     terms['rot_vel_mse'] = self.masked_l2(
                         target_vel,
                         model_output_vel,
+                        seq_len - 1, # Velocity has one less frame
                     )
 
 

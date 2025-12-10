@@ -95,8 +95,6 @@ class MotionDataset(Dataset):
         motion_w_o = self.motion_without_orth[idx % len(self.motion_clean)]
         seqlen = motion.shape[0]
         seqlen_wo = motion_w_o.shape[0]
-        #random=torch.randint(0, int(seqlen - self.input_motion_length), (1,))[0] if seqlen > self.input_motion_length else 0
-        #sequence padding or random cropping to fit input length
         if seqlen <= self.input_motion_length:
             if seqlen > 0:
                 frames_to_add = self.input_motion_length - seqlen
@@ -121,7 +119,7 @@ class MotionDataset(Dataset):
             motion = (motion - self.mean) / (self.std + 1e-8)
         """
 
-        return motion.float(), motion_w_o.float()
+        return seqlen, motion.float(), motion_w_o.float()
     
 class TestDataset(Dataset):
     def __init__(

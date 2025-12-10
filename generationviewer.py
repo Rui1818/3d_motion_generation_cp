@@ -126,17 +126,14 @@ if __name__ == "__main__":
     C.smplx_models = "smpl_models/"
     # Set the playback speed to 30 frames per second.
     C.playback_fps = 30
+    
     configlist=[
-        "config25",
-        "config26",
-        "config27",
-        "config28",
-        "config29",
-        "config30",
-        "config30_s"
+        "config1",
+        "config5",
+        "config6",
+        "config7",
     ]
-
-    root="results/"
+    root="results/new"
     v=Viewer()
     reference=None
     i=5
