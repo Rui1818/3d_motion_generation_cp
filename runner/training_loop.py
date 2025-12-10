@@ -202,9 +202,10 @@ class TrainLoop:
         val_losses = []
 
         with torch.no_grad():
-            for motion, cond in self.val_data:
+            for seqlen, motion, cond in self.val_data:
                 motion = motion.to(self.device)
                 cond = cond.to(self.device)
+                seqlen = seqlen.to(self.device)
 
                 # Sample random timesteps
                 t, weights = self.schedule_sampler.sample(motion.shape[0], dist_util.dev())
@@ -216,6 +217,7 @@ class TrainLoop:
                     motion,
                     t,
                     cond,
+                    model_kwargs={"y": {"seq_len": seqlen}},
                     dataset=self.data.dataset,
                 )
 

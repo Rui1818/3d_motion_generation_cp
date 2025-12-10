@@ -18,6 +18,7 @@ from diffusion.gaussian_diffusion import (
     ModelMeanType,
     ModelVarType,
 )
+from utils.soft_dtw_cuda import SoftDTW
 def sum_flat(tensor: torch.Tensor) -> torch.Tensor:
     """
     Takes the sum over all non-batch dimensions.
@@ -41,9 +42,13 @@ class GaitDiffusionModel(GaussianDiffusion):
     ):
         self.lambda_rot_vel = kwargs.pop("lambda_rot_vel", 0.0)
         self.lambda_transl_vel = kwargs.pop("lambda_transl_vel", 0.0)
+        self.soft_dtw_gamma = kwargs.pop("soft_dtw_gamma", 1.0)
+        self.soft_dtw_normalize = kwargs.pop("soft_dtw_normalize", False)
         super(GaitDiffusionModel, self).__init__(
             **kwargs,
         )
+        # Initialize SoftDTW module (will be created on first use to ensure correct device)
+        self._soft_dtw = None
 
     def masked_l2(self, a, b, seqlen):
         """
@@ -69,9 +74,62 @@ class GaitDiffusionModel(GaussianDiffusion):
         num_valid_elements = seqlen.unsqueeze(1) * features
         # Avoid division by zero for sequences of length 0
         num_valid_elements = torch.max(num_valid_elements, torch.ones_like(num_valid_elements))
-        
+
         # Sum the loss over frames and features, then normalize
         return sum_flat(masked_loss) / num_valid_elements.squeeze(1)
+
+    def masked_soft_dtw(self, a, b, seqlen):
+        """
+        Computes the masked Soft-DTW loss.
+        The reference sequence (a) is masked to only use frames before the sequence length.
+
+        Args:
+            a: Reference sequence (batch, frames, features) - will be masked
+            b: Generated sequence (batch, frames, features)
+            seqlen: Sequence lengths for each batch element (batch,)
+
+        Returns:
+            Soft-DTW loss per batch element (batch,)
+        """
+        # Initialize SoftDTW module if not already done
+        if self._soft_dtw is None:
+            use_cuda = a.is_cuda
+            self._soft_dtw = SoftDTW(
+                use_cuda=use_cuda,
+                gamma=self.soft_dtw_gamma,
+                normalize=True,
+                bandwidth=None
+            )
+            # Move to same device as input
+            if hasattr(self._soft_dtw, 'to'):
+                self._soft_dtw = self._soft_dtw.to(a.device)
+
+        batch, frames, features = a.shape
+
+        # Create masked versions of the reference sequence
+        # We'll extract only the valid frames for each sequence in the batch
+        losses = []
+
+        for i in range(batch):
+            # Get the valid length for this sequence
+            valid_len = int(seqlen[i].item())
+
+            # Handle edge case of zero-length sequences
+            if valid_len <= 0:
+                losses.append(torch.tensor(0.0, device=a.device, dtype=a.dtype))
+                continue
+
+            # Extract valid frames from reference (a) - masked to valid_len
+            # Use full sequence from generated (b) - not masked
+            a_valid = a[i:i+1, :valid_len, :]  # Shape: (1, valid_len, features)
+            b_full = b[i:i+1, :, :]             # Shape: (1, frames, features)
+
+            # Compute Soft-DTW between masked reference and full generated sequence
+            loss = self._soft_dtw(a_valid, b_full)
+            losses.append(loss.squeeze())
+
+        # Stack losses into a tensor of shape (batch,)
+        return torch.stack(losses)
 
     def training_losses(
         self, model, x_start, t, cond, model_kwargs=None, noise=None, dataset=None

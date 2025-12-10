@@ -159,8 +159,6 @@ class TestDataset(Dataset):
         motion_w_o = self.motion_without_orth[idx % len(self.motion_clean)]
         beta=self.betas[idx % len(self.motion_clean)] if self.betas is not None else torch.tensor(0.0)
         seqlen_wo = motion_w_o.shape[0]
-        #random=torch.randint(0, int(seqlen - self.input_motion_length), (1,))[0] if seqlen > self.input_motion_length else 0
-        #sequence padding or random cropping to fit input length
 
         if seqlen_wo <= self.input_motion_length:
             if seqlen_wo > 0:
