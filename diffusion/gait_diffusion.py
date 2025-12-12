@@ -147,6 +147,9 @@ class GaitDiffusionModel(GaussianDiffusion):
 
         terms = {}
 
+        #choose the loss function
+        loss_func=self.masked_l2
+
         if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
             terms["loss"] = self._vb_terms_bpd(
                 model=model,
@@ -193,7 +196,7 @@ class GaitDiffusionModel(GaussianDiffusion):
 
             assert model_output.shape == target.shape == x_start.shape
 
-            terms["simple_mse"] = self.masked_l2(
+            terms["simple_mse"] = loss_func(
                 target,
                 model_output,
                 seq_len,
@@ -208,12 +211,12 @@ class GaitDiffusionModel(GaussianDiffusion):
                     model_output_rot_vel = model_output[:, 1:, 3:]- model_output[:, :-1, 3:]
                     target_transl_vel = target[:, 1:, :3]- target[:, :-1, :3]
                     model_output_transl_vel = model_output[:, 1:, :3]- model_output[:, :-1, :3]
-                    terms['rot_vel_mse'] = self.masked_l2(
+                    terms['rot_vel_mse'] = loss_func(
                         target_rot_vel,
                         model_output_rot_vel,
                         seq_len - 1, # Velocity has one less frame
                     )
-                    terms['transl_vel_mse'] = self.masked_l2(
+                    terms['transl_vel_mse'] = loss_func(
                         target_transl_vel,
                         model_output_transl_vel,
                         seq_len - 1, # Velocity has one less frame
@@ -222,7 +225,7 @@ class GaitDiffusionModel(GaussianDiffusion):
                     #keypoints only
                     target_vel = target[:, 1:, :]- target[:, :-1, :]
                     model_output_vel = model_output[:, 1:, :]- model_output[:, :-1, :]
-                    terms['rot_vel_mse'] = self.masked_l2(
+                    terms['rot_vel_mse'] = loss_func(
                         target_vel,
                         model_output_vel,
                         seq_len - 1, # Velocity has one less frame
@@ -231,9 +234,9 @@ class GaitDiffusionModel(GaussianDiffusion):
 
 
             
-            terms["loss"] = terms["simple_mse"] + terms.get("vb", 0.0) 
+            terms["loss"] = (terms["simple_mse"] + terms.get("vb", 0.0) 
             + self.lambda_rot_vel * terms.get("rot_vel_mse", 0.0) 
-            + self.lambda_transl_vel * terms.get("transl_vel_mse", 0.0)
+            + self.lambda_transl_vel * terms.get("transl_vel_mse", 0.0))
 
         else:
             raise NotImplementedError(self.loss_type)

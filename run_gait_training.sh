@@ -74,40 +74,36 @@ run_training() {
 
 # Openpose keypoints
 
-run_training "my_training/config1" 256 8 1e-4 200000 2e-4 openpose 0 0 0 69
-run_training "my_training/config2" 512 8 1e-4 200000 2e-4 openpose 0 0 0 69
+#run_training "my_training/config1" 256 8 1e-4 200000 2e-4 openpose 0 0 0 69
+#run_training "my_training/config2" 512 8 1e-4 200000 2e-4 openpose 0 0 0 69
 
 #velocity
 run_training "my_training/config3" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69
 run_training "my_training/config4" 512 12 1e-4 200000 2e-4 openpose 0 1 0 69
 
 #cond_mask_prob 0.1
-run_training "my_training/config5" 512 12 1e-4 500000 2e-4 openpose 0.1 0 0 69
-run_training "my_training/config6" 512 8 1e-4 200000 2e-4 openpose 0.1 0 0 69
+#run_training "my_training/config5" 512 12 1e-4 200000 2e-4 openpose 0.1 0 0 69
+#run_training "my_training/config6" 512 8 1e-4 200000 2e-4 openpose 0.1 0 0 69
 run_training "my_training/config7" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69
 
 # 6d rotations
-run_training "my_training/config8" 256 8 1e-4 200000 2e-4 6d 0 0 0 135
-run_training "my_training/config9" 512 8 1e-4 500000 2e-4 6d 0 0 0 135
-run_training "my_training/config10" 256 4 1e-4 200000 2e-4 6d 0 0 0 135
-run_training "my_training/config11" 512 4 1e-4 200000 2e-4 6d 0 0 0 135
+#run_training "my_training/config8" 256 8 1e-4 200000 2e-4 6d 0 0 0 135
+#run_training "my_training/config9" 512 8 1e-4 200000 2e-4 6d 0 0 0 135
 #velocity
 run_training "my_training/config12" 256 6 1e-4 200000 2e-4 6d 0 0.5 0.5 135
-run_training "my_training/config13" 512 6 1e-4 200000 2e-4 6d 0 0.5 0.5 135
 run_training "my_training/config14" 256 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135
 
 #velocity + cond_mask_prob 0.1
 run_training "my_training/config15" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135
 run_training "my_training/config16" 256 12 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135
-run_training "my_training/config17" 512 12 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135
 
 
 #run_training "my_training/config25" 512 12 1e-4 200000 2e-4 openpose 0 0 0 69
 #run_training "my_training/config26" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69
 #run_training "my_training/config27" 512 12 1e-4 200000 2e-4 openpose 0 1 0 69
 #run_training "my_training/config28" 512 12 1e-4 200000 2e-4 6d 0 0 0 135
-#run_training "my_training/config29" 512 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135
-#run_training "my_training/config30" 512 12 1e-4 200000 2e-4 6d 0 0.5 0.5 135
+run_training "my_training/config29" 512 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135
+run_training "my_training/config30" 512 12 1e-4 200000 2e-4 6d 0 0.5 0.5 135
 
 
 # Config 4: Add more configs as you like...

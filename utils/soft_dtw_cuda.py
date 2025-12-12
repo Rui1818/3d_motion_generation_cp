@@ -28,6 +28,11 @@ from numba import jit, prange
 from torch.autograd import Function
 from numba import cuda
 import math
+import warnings
+from numba.core.errors import NumbaWarning
+
+# Suppress all warnings related to Numba
+warnings.simplefilter('ignore', NumbaWarning)
 
 # ----------------------------------------------------------------------------------------------------------------------
 @cuda.jit
