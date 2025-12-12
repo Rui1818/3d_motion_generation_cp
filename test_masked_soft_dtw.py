@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from utils.soft_dtw_cuda import SoftDTW
 
-def masked_soft_dtw_impl(soft_dtw_module, a, b, seqlen):
+def masked_soft_dtw_impl(soft_dtw_module, a, b, seqlen, normalize=False):
     """
     Re-implementation of GaitDiffusionModel.masked_soft_dtw logic.
     This function iterates over the batch and computes SoftDTW for each pair
@@ -33,7 +33,15 @@ def masked_soft_dtw_impl(soft_dtw_module, a, b, seqlen):
         b_full = b[i:i+1, :, :]             # Shape: (1, frames, features)
 
         # Compute Soft-DTW between masked reference and full generated sequence
-        loss = soft_dtw_module(a_valid, b_full)
+        if normalize:
+            # Manually compute normalized SoftDTW to avoid shape mismatch issues
+            # in the SoftDTW module's internal batching (torch.cat) when lengths differ.
+            loss_xy = soft_dtw_module(a_valid, b_full)
+            loss_xx = soft_dtw_module(a_valid, a_valid)
+            loss_yy = soft_dtw_module(b_full, b_full)
+            loss = loss_xy - 0.5 * (loss_xx + loss_yy)
+        else:
+            loss = soft_dtw_module(a_valid, b_full)
         losses.append(loss.squeeze())
 
     # Stack losses into a tensor of shape (batch,)
@@ -69,11 +77,11 @@ def run_test():
     seq_lens_cpu = seq_lens.clone()
     
     # Initialize SoftDTW for CPU
-    # normalize=True matches GaitDiffusionModel usage
-    sdtw_cpu = SoftDTW(use_cuda=False, gamma=gamma, normalize=True)
+    # normalize=False to avoid internal batching issues with unequal lengths
+    sdtw_cpu = SoftDTW(use_cuda=False, gamma=gamma, normalize=False)
     
     start_time = time.time()
-    loss_cpu = masked_soft_dtw_impl(sdtw_cpu, a_cpu, b_cpu, seq_lens_cpu)
+    loss_cpu = masked_soft_dtw_impl(sdtw_cpu, a_cpu, b_cpu, seq_lens_cpu, normalize=True)
     loss_cpu_mean = loss_cpu.mean()
     loss_cpu_mean.backward()
     cpu_time = time.time() - start_time
@@ -89,15 +97,15 @@ def run_test():
         seq_lens_gpu = seq_lens.clone().cuda()
         
         # Initialize SoftDTW for GPU
-        sdtw_gpu = SoftDTW(use_cuda=True, gamma=gamma, normalize=True)
+        sdtw_gpu = SoftDTW(use_cuda=True, gamma=gamma, normalize=False)
         
         # Warmup
         print("Warming up GPU...")
-        _ = masked_soft_dtw_impl(sdtw_gpu, a_gpu, b_gpu, seq_lens_gpu)
+        _ = masked_soft_dtw_impl(sdtw_gpu, a_gpu, b_gpu, seq_lens_gpu, normalize=True)
         torch.cuda.synchronize()
         
         start_time = time.time()
-        loss_gpu = masked_soft_dtw_impl(sdtw_gpu, a_gpu, b_gpu, seq_lens_gpu)
+        loss_gpu = masked_soft_dtw_impl(sdtw_gpu, a_gpu, b_gpu, seq_lens_gpu, normalize=True)
         loss_gpu_mean = loss_gpu.mean()
         loss_gpu_mean.backward()
         torch.cuda.synchronize()
