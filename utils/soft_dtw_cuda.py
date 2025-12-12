@@ -341,12 +341,23 @@ class SoftDTW(torch.nn.Module):
 
         if self.normalize:
             # Stack everything up and run
-            x = torch.cat([X, X, Y])
-            y = torch.cat([Y, X, Y])
-            D = self.dist_func(x, y)
-            out = func_dtw(D, self.gamma, self.bandwidth)
-            out_xy, out_xx, out_yy = torch.split(out, X.shape[0])
-            return out_xy - 1 / 2 * (out_xx + out_yy)
+            if X.shape[1] == Y.shape[1]:
+                x = torch.cat([X, X, Y])
+                y = torch.cat([Y, X, Y])
+                D = self.dist_func(x, y)
+                out = func_dtw(D, self.gamma, self.bandwidth)
+                out_xy, out_xx, out_yy = torch.split(out, X.shape[0])
+                return out_xy - 1 / 2 * (out_xx + out_yy)
+            else:
+                D_xy = self.dist_func(X, Y)
+                out_xy = func_dtw(D_xy, self.gamma, self.bandwidth)
+
+                D_xx = self.dist_func(X, X)
+                out_xx = func_dtw(D_xx, self.gamma, self.bandwidth)
+
+                D_yy = self.dist_func(Y, Y)
+                out_yy = func_dtw(D_yy, self.gamma, self.bandwidth)
+                return out_xy - 0.5 * (out_xx + out_yy)
         else:
             D_xy = self.dist_func(X, Y)
             return func_dtw(D_xy, self.gamma, self.bandwidth)
