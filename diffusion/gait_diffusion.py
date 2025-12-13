@@ -18,7 +18,7 @@ from diffusion.gaussian_diffusion import (
     ModelMeanType,
     ModelVarType,
 )
-import pysdtw
+from utils.soft_dtw_cuda import SoftDTW
 def sum_flat(tensor: torch.Tensor) -> torch.Tensor:
     """
     Takes the sum over all non-batch dimensions.
@@ -94,7 +94,7 @@ class GaitDiffusionModel(GaussianDiffusion):
         # Initialize SoftDTW module if not already done
         if self._soft_dtw is None:
             use_cuda = a.is_cuda
-            self._soft_dtw = pysdtw.SoftDTW(
+            self._soft_dtw = SoftDTW(
                 use_cuda=use_cuda,
                 gamma=self.soft_dtw_gamma,
                 bandwidth=None
