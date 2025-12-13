@@ -32,6 +32,7 @@ run_training() {
     local lambda_rot_vel=$9
     local lambda_transl_vel=${10}
     local motionnfeatures=${11}
+    local lr_anneal=${12}
 
     echo "--- Starting Training: $save_dir ---"
     echo "Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
@@ -58,6 +59,7 @@ run_training() {
         --lambda_transl_vel "$lambda_transl_vel" \
         --motion_nfeat "$motionnfeatures" \
         --sparse_dim "$motionnfeatures" \
+        --lr_anneal_steps "$lr_anneal" \
         --overwrite
 
     # Check if training was successful
@@ -74,36 +76,36 @@ run_training() {
 
 # Openpose keypoints
 
-#run_training "my_training/config1" 256 8 1e-4 200000 2e-4 openpose 0 0 0 69
-#run_training "my_training/config2" 512 8 1e-4 200000 2e-4 openpose 0 0 0 69
+#run_training "my_training/config1" 256 8 1e-4 200000 2e-4 openpose 0 0 0 69 0
+#run_training "my_training/config2" 512 8 1e-4 200000 2e-4 openpose 0 0 0 69 0
 
 #velocity
-run_training "my_training/config3" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69
-run_training "my_training/config4" 512 12 1e-4 200000 2e-4 openpose 0 1 0 69
+run_training "my_training/config3" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69 0
+run_training "my_training/config4" 512 12 1e-4 200000 2e-4 openpose 0 1 0 69 0
 
 #cond_mask_prob 0.1
-#run_training "my_training/config5" 512 12 1e-4 200000 2e-4 openpose 0.1 0 0 69
-#run_training "my_training/config6" 512 8 1e-4 200000 2e-4 openpose 0.1 0 0 69
-run_training "my_training/config7" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69
+#run_training "my_training/config5" 512 12 1e-4 200000 2e-4 openpose 0.1 0 0 69 0
+#run_training "my_training/config6" 512 8 1e-4 200000 2e-4 openpose 0.1 0 0 69 0
+run_training "my_training/config7" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 0
 
 # 6d rotations
-#run_training "my_training/config8" 256 8 1e-4 200000 2e-4 6d 0 0 0 135
-#run_training "my_training/config9" 512 8 1e-4 200000 2e-4 6d 0 0 0 135
+#run_training "my_training/config8" 256 8 1e-4 200000 2e-4 6d 0 0 0 135 0
+#run_training "my_training/config9" 512 8 1e-4 200000 2e-4 6d 0 0 0 135 0
 #velocity
-run_training "my_training/config12" 256 6 1e-4 200000 2e-4 6d 0 0.5 0.5 135
-run_training "my_training/config14" 256 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135
+run_training "my_training/config12" 256 6 1e-4 200000 2e-4 6d 0 0.5 0.5 135 0
+run_training "my_training/config14" 256 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135 0
 
 #velocity + cond_mask_prob 0.1
-run_training "my_training/config15" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135
-run_training "my_training/config16" 256 12 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135
+run_training "my_training/config15" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 0
+run_training "my_training/config16" 256 12 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 0
 
 
-#run_training "my_training/config25" 512 12 1e-4 200000 2e-4 openpose 0 0 0 69
-#run_training "my_training/config26" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69
-#run_training "my_training/config27" 512 12 1e-4 200000 2e-4 openpose 0 1 0 69
-#run_training "my_training/config28" 512 12 1e-4 200000 2e-4 6d 0 0 0 135
-run_training "my_training/config29" 512 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135
-run_training "my_training/config30" 512 12 1e-4 200000 2e-4 6d 0 0.5 0.5 135
+#run_training "my_training/config25" 512 12 1e-4 200000 2e-4 openpose 0 0 0 69 0
+#run_training "my_training/config26" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69 0
+#run_training "my_training/config27" 512 12 1e-4 200000 2e-4 openpose 0 1 0 69 0
+#run_training "my_training/config28" 512 12 1e-4 200000 2e-4 6d 0 0 0 135 0
+run_training "my_training/config29" 512 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135 0
+run_training "my_training/config30" 512 12 1e-4 200000 2e-4 6d 0 0.5 0.5 135 0
 
 
 # Config 4: Add more configs as you like...
