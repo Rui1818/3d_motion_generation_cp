@@ -18,7 +18,7 @@ from diffusion.gaussian_diffusion import (
     ModelMeanType,
     ModelVarType,
 )
-from utils.soft_dtw_cuda import SoftDTW
+import pysdtw
 def sum_flat(tensor: torch.Tensor) -> torch.Tensor:
     """
     Takes the sum over all non-batch dimensions.
@@ -94,10 +94,9 @@ class GaitDiffusionModel(GaussianDiffusion):
         # Initialize SoftDTW module if not already done
         if self._soft_dtw is None:
             use_cuda = a.is_cuda
-            self._soft_dtw = SoftDTW(
+            self._soft_dtw = pysdtw.SoftDTW(
                 use_cuda=use_cuda,
                 gamma=self.soft_dtw_gamma,
-                normalize=True,
                 bandwidth=None
             )
             # Move to same device as input
@@ -125,7 +124,13 @@ class GaitDiffusionModel(GaussianDiffusion):
             b_full = b[i:i+1, :, :]             # Shape: (1, frames, features)
 
             # Compute Soft-DTW between masked reference and full generated sequence
-            loss = self._soft_dtw(a_valid, b_full)
+            if self.soft_dtw_normalize:
+                loss_xy = self._soft_dtw(a_valid, b_full)
+                loss_xx = self._soft_dtw(a_valid, a_valid)
+                loss_yy = self._soft_dtw(b_full, b_full)
+                loss = loss_xy - 0.5 * (loss_xx + loss_yy)
+            else:
+                loss = self._soft_dtw(a_valid, b_full)
             losses.append(loss.squeeze())
 
         # Stack losses into a tensor of shape (batch,)
@@ -148,7 +153,7 @@ class GaitDiffusionModel(GaussianDiffusion):
         terms = {}
 
         #choose the loss function
-        loss_func=self.masked_l2
+        loss_func=self.masked_soft_dtw
 
         if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
             terms["loss"] = self._vb_terms_bpd(
