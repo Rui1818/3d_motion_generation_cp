@@ -200,6 +200,7 @@ class TrainLoop:
 
         self.model.eval()
         val_losses = []
+        val_dtw_losses = []
 
         with torch.no_grad():
             for seqlen, motion, cond in self.val_data:
@@ -219,15 +220,21 @@ class TrainLoop:
                     cond,
                     model_kwargs={"y": {"seq_len": seqlen}},
                     dataset=self.data.dataset,
+                    eval_dtw=True,
                 )
 
                 losses = compute_losses()
                 loss = (losses["loss"] * weights).mean()
                 val_losses.append(loss.item())
+                if "dtw_loss" in losses:
+                    val_dtw_losses.append(losses["dtw_loss"].item())
 
         # Log average validation loss
         avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0.0
         logger.logkv("val_loss", avg_val_loss)
+        if val_dtw_losses:
+            avg_val_dtw_loss = sum(val_dtw_losses) / len(val_dtw_losses)
+            logger.logkv("val_dtw_loss", avg_val_dtw_loss)
 
         self.model.train()
 

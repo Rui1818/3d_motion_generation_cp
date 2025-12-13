@@ -11,6 +11,8 @@ Docstrings have been added, as well as DDIM sampling and a new collection of bet
 
 import torch
 import torch as th
+import fastdtw
+import numpy as np
 
 from diffusion.gaussian_diffusion import (
     GaussianDiffusion,
@@ -97,6 +99,7 @@ class GaitDiffusionModel(GaussianDiffusion):
             self._soft_dtw = SoftDTW(
                 use_cuda=use_cuda,
                 gamma=self.soft_dtw_gamma,
+                normalize=True,
                 bandwidth=None
             )
             # Move to same device as input
@@ -124,20 +127,14 @@ class GaitDiffusionModel(GaussianDiffusion):
             b_full = b[i:i+1, :, :]             # Shape: (1, frames, features)
 
             # Compute Soft-DTW between masked reference and full generated sequence
-            if self.soft_dtw_normalize:
-                loss_xy = self._soft_dtw(a_valid, b_full)
-                loss_xx = self._soft_dtw(a_valid, a_valid)
-                loss_yy = self._soft_dtw(b_full, b_full)
-                loss = loss_xy - 0.5 * (loss_xx + loss_yy)
-            else:
-                loss = self._soft_dtw(a_valid, b_full)
+            loss = self._soft_dtw(a_valid, b_full)
             losses.append(loss.squeeze())
 
         # Stack losses into a tensor of shape (batch,)
         return torch.stack(losses)
 
     def training_losses(
-        self, model, x_start, t, cond, model_kwargs=None, noise=None, dataset=None
+        self, model, x_start, t, cond, model_kwargs=None, noise=None, dataset=None, eval_dtw=False
     ):
 
         if model_kwargs is None:
@@ -153,7 +150,7 @@ class GaitDiffusionModel(GaussianDiffusion):
         terms = {}
 
         #choose the loss function
-        loss_func=self.masked_soft_dtw
+        loss_func=self.masked_l2
 
         if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
             terms["loss"] = self._vb_terms_bpd(
@@ -167,8 +164,7 @@ class GaitDiffusionModel(GaussianDiffusion):
             if self.loss_type == LossType.RESCALED_KL:
                 terms["loss"] *= self.num_timesteps
         elif self.loss_type == LossType.MSE or self.loss_type == LossType.RESCALED_MSE:
-            # Filter out 'y' from kwargs as it is not accepted by the model forward method
-            model_output = model(x_t, self._scale_timesteps(t), cond, **{k: v for k, v in model_kwargs.items() if k != 'y'})
+            model_output = model(x_t, self._scale_timesteps(t), cond, **model_kwargs)
 
             if self.model_var_type in [
                 ModelVarType.LEARNED,
@@ -243,6 +239,26 @@ class GaitDiffusionModel(GaussianDiffusion):
             terms["loss"] = (terms["simple_mse"] + terms.get("vb", 0.0) 
             + self.lambda_rot_vel * terms.get("rot_vel_mse", 0.0) 
             + self.lambda_transl_vel * terms.get("transl_vel_mse", 0.0))
+            
+            if eval_dtw:
+                if self.model_mean_type == ModelMeanType.START_X:
+                    pred_xstart = model_output
+                elif self.model_mean_type == ModelMeanType.EPSILON:
+                    pred_xstart = self._predict_xstart_from_eps(x_t, t, model_output)
+                else:
+                    pred_xstart = model_output
+
+                dtw_losses = []
+                pred_np = pred_xstart.detach().cpu().numpy()
+                target_np = x_start.detach().cpu().numpy()
+                dist_fn = lambda x, y: np.linalg.norm(x - y)
+
+                for i in range(len(pred_np)):
+                    sl = int(seq_len[i].item()) if seq_len is not None else pred_np.shape[1]
+                    d, _ = fastdtw.fastdtw(pred_np[i, :], target_np[i, :sl], dist=dist_fn)
+                    dtw_losses.append(d)
+                
+                terms["dtw_loss"] = torch.tensor(np.mean(dtw_losses), device=x_start.device)
 
         else:
             raise NotImplementedError(self.loss_type)
