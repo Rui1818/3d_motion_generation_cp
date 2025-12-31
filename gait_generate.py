@@ -141,8 +141,8 @@ def main():
         #betas shape: (1,frames, 10/11)|_
         reference, condition, betas = batch
         condition=condition.to(device)
-        print(reference.shape, condition.shape)  # shapes of the batch
-        print(f"Condition motion shape: {condition.shape}")
+        #print(reference.shape, condition.shape)  # shapes of the batch
+        #print(f"Condition motion shape: {condition.shape}")
 
         # --- Run the generation ---
         generated_motion = sample(model, diffusion, condition, args)
@@ -151,7 +151,7 @@ def main():
         if args.keypointtype=='6d':
             assert generated_motion_np.shape[1]==135
             betas_np=betas.squeeze(0).cpu().numpy()
-            generated_motion_np = gaussian_filter1d(generated_motion_np, sigma=1, axis=0)
+            #generated_motion_np = gaussian_filter1d(generated_motion_np, sigma=1, axis=0)
             generated_motion_np=sixd_to_smplx({'motion_6d': generated_motion_np[:,3:], 'transl': generated_motion_np[:,:3], 'betas': betas_np})
         elif args.keypointtype=='openpose':
             assert generated_motion_np.shape[1]==69
@@ -168,7 +168,8 @@ def main():
             #generated_motion_np=remove_padding_3d_numpy(generated_motion_np)
             generated_motion_np=generated_motion_np-generated_motion_np[0,0,:]
             reference_np=reference_np-reference_np[0,0,:]
-            dtw_distance, _ = calculate_motion_dtw(reference_np, generated_motion_np)
+            dtw_distance, path = calculate_motion_dtw(reference_np, generated_motion_np)
+            dtw_distance=dtw_distance/len(path)  # normalize by length of path
             dtw_metrics.append({
                 'sample_id': i,
                 'dtw_distance': dtw_distance,

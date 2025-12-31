@@ -5,16 +5,19 @@
 # 1. Automatically find all configuration folders in the training directory.
 #    This removes the need to list them manually, and excludes 'overfit_run'.
 #CONFIGS=($(find my_training -mindepth 1 -maxdepth 1 -not -path "my_training/overfit_run" -type d -exec basename {} \;))
-CONFIGS=("config8" "config9" "config10" "config11" "config12" "config13" "config14" "config15" "config16" "config17" "config28" "config29" "config30")
+#openpose
+#CONFIGS=("config1_new" "config2_new" "config3_new" "config4_new" "config5_new" "config6_new" "config7_new" "config25_new" "config26_new" "config27_new")
+
+CONFIGS=("config8_new" "config9_new" "config12_new" "config14_new" "config15_new" "config16_new" "config28_new" "config29_new" "config30_new")
 # 2. List your model checkpoint names here (without the .pt extension)
 # The script assumes these specific filenames exist inside every config folder
-MODELS=("model000035763" "model000081263" "model000113763" "model000162513" "model000200005")
+MODELS=("model000019513" "model000026013" "model000032513" "model000065013")
 
 # 3. Common settings
 INPUT_LENGTH=240
 KEYPOINT_TYPE="6d"
 BASE_TRAINING_DIR="my_training"
-BASE_RESULTS_DIR="results"
+BASE_RESULTS_DIR="results/baseline"
 
 # =================================================
 

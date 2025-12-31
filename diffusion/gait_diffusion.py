@@ -97,7 +97,7 @@ class GaitDiffusionModel(GaussianDiffusion):
         if self._soft_dtw is None:
             use_cuda = a.is_cuda
             self._soft_dtw = SoftDTW(
-                use_cuda=use_cuda,
+                use_cuda=False,
                 gamma=self.soft_dtw_gamma,
                 normalize=True,
                 bandwidth=None
@@ -164,7 +164,7 @@ class GaitDiffusionModel(GaussianDiffusion):
             if self.loss_type == LossType.RESCALED_KL:
                 terms["loss"] *= self.num_timesteps
         elif self.loss_type == LossType.MSE or self.loss_type == LossType.RESCALED_MSE:
-            model_output = model(x_t, self._scale_timesteps(t), cond, **model_kwargs)
+            model_output = model(x_t, self._scale_timesteps(t), cond, **{k: v for k, v in model_kwargs.items() if k != 'y'})
 
             if self.model_var_type in [
                 ModelVarType.LEARNED,
