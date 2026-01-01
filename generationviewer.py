@@ -128,10 +128,8 @@ if __name__ == "__main__":
     C.playback_fps = 30
     
     configlist=[
-        "config1",
-        "config5",
-        "config6",
-        "config7",
+        "configsoftdtw",
+
     ]
     root="results/new"
     v=Viewer()
@@ -139,8 +137,9 @@ if __name__ == "__main__":
     i=5
     #conf="config16"
     for config in os.listdir(root):
+        """
         if config not in configlist:
-            continue
+            continue"""
         config_path=os.path.join(root, config)
         for model in os.listdir(config_path):
             #if model in modellist:
