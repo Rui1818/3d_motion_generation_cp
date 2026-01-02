@@ -62,30 +62,146 @@ def prepare_conditional_motion(file_path, input_motion_length, keypointtype):
     #return motion_w_o.unsqueeze(0)  # Add batch dimension
     return get_dataloader(dataset, "test", batch_size=1, num_workers=1)
 
-def sample(model, diffusion, cond_motion, args):
+def change_motion_position(motion, offset=None):
+    #motion: tensor (1, frames, dim)
+    #only batch size 1 supported
+    motion=motion.squeeze(0)  # (frames, dim)
+    if motion.shape[1]==69:
+        # 1. Calculate the root (average of joint 7 and joint 10) 
+        # Joint 7 is indices 21:24, Joint 10 is indices 30:33
+        root = (motion[0, 21:24] + motion[0, 30:33]) / 2 if offset is None else -1*((offset[0, 21:24] + offset[0, 30:33]) / 2)
+        # 2. Subtract the root from the motion data
+        # We subtract root[0] from all X's, root[1] from all Y's, and root[2] from all Z's
+        motion[:, 0::3] -= root[0]  # All X coordinates
+        motion[:, 1::3] -= root[1]  # All Y coordinates
+        motion[:, 2::3] -= root[2]  # All Z coordinates
+    elif motion.shape[1]==135:
+        root = motion[0, :3] if offset is None else -1*offset[0, :3]
+        motion[:, :3] = motion[:, :3] - root
+    else:
+        raise ValueError("Unknown motion dimension for normalization.")
+    motion=motion.unsqueeze(0)
+    return motion
+
+def sample(model, diffusion, cond_motion, args, use_sliding_window=False, sliding_window_step=10):
     """
     Generates motion samples using the diffusion model conditioned on the provided motion.
+
+    Args:
+        model: The diffusion model
+        diffusion: Diffusion process
+        cond_motion: Conditional motion input (batch_size, total_frames, features)
+        args: Arguments containing model configuration
+        use_sliding_window: If True, generates motion using sliding windows
+        sliding_window_step: Number of frames to slide the window after each generation
+
+    Returns:
+        Generated motion tensor
     """
     batch_size = cond_motion.shape[0]
-    output_shape = (batch_size, args.input_motion_length, args.motion_nfeat)
+    total_frames = cond_motion.shape[1]
+    window_size = args.input_motion_length
 
+    if not use_sliding_window:
+        # Original behavior: generate entire motion at once
+        output_shape = (batch_size, args.input_motion_length, args.motion_nfeat)
+        sample_fn = diffusion.p_sample_loop
+
+        generated_motion = sample_fn(
+            model,
+            output_shape,
+            sparse=cond_motion,
+            clip_denoised=False,
+            model_kwargs=None,
+            skip_timesteps=0,
+            init_image=None,
+            progress=True,
+            dump_steps=None,
+            noise=None,
+            const_noise=False,
+        )
+        return generated_motion
+
+    # Sliding window generation
     sample_fn = diffusion.p_sample_loop
 
-    generated_motion = sample_fn(
-        model,
-        output_shape,
-        sparse=cond_motion,  # Pass the conditional motion here
-        clip_denoised=False,
-        model_kwargs=None,
-        skip_timesteps=0,
-        init_image=None,
-        progress=True,
-        dump_steps=None,
-        noise=None,
-        const_noise=False,
-    )
+    # Initialize output tensor to store all generated frames
+    all_generated_frames = []
+    generated_frames_concat=[]
 
-    return generated_motion
+    # Calculate number of windows needed
+    num_windows = max(1, (total_frames - window_size) // sliding_window_step + 1)
+
+    for window_idx in range(num_windows):
+        start_idx = window_idx * sliding_window_step
+        end_idx = min(start_idx + window_size, total_frames)
+
+        # Extract window from conditional motion
+        cond_window = cond_motion[:, start_idx:end_idx, :]
+        #root normalization for inference
+        cond_window = change_motion_position(cond_window)
+
+        # Pad if necessary (last window might be shorter)
+        if cond_window.shape[1] < window_size:
+            padding_length = window_size - cond_window.shape[1]
+            last_frame = cond_window[:, -1:, :]
+            padding = last_frame.repeat(1, padding_length, 1)
+            cond_window = torch.cat([cond_window, padding], dim=1)
+
+        # Generate motion for this window
+        output_shape = (batch_size, window_size, args.motion_nfeat)
+        generated_window = sample_fn(
+            model,
+            output_shape,
+            sparse=cond_window,
+            clip_denoised=False,
+            model_kwargs=None,
+            skip_timesteps=0,
+            init_image=None,
+            progress=True,
+            dump_steps=None,
+            noise=None,
+            const_noise=False,
+        )
+
+        # For the first window, take all frames
+        if window_idx == 0:
+            all_generated_frames.append(generated_window)
+        # For subsequent windows, only take the new frames (after the overlap)
+        else:
+            #TODO apply smoothing between windows
+            # Take only the frames that extend beyond previous windows
+            frames_to_take = min(sliding_window_step, end_idx - start_idx)
+
+            frame_offset = all_generated_frames[-1][:, -1:, :]
+            frame_offset=frame_offset.squeeze(0)  # (1, features)
+
+            #generated_window =change_motion_position(generated_window, offset=frame_offset)
+            all_generated_frames.append(generated_window)
+            generated_window = generated_window[:, frames_to_take:, :]
+            generated_frames_concat.append(generated_window)
+
+    # Concatenate all generated frames
+    generated_motion = torch.cat(all_generated_frames, dim=1)
+    generated_motion_concat = torch.cat(generated_frames_concat, dim=1)
+    """
+    # Trim to match the original total_frames if needed
+    if generated_motion.shape[1] > total_frames:
+        generated_motion = generated_motion[:, :total_frames, :]"""
+
+    return generated_motion, generated_motion_concat
+
+def transform_motion_back(args, betas, generated_motion_np, reference_np):
+    if args.keypointtype=='6d':
+        assert generated_motion_np.shape[1]==135
+        betas_np=betas.squeeze(0).cpu().numpy()
+        #generated_motion_np = gaussian_filter1d(generated_motion_np, sigma=1, axis=0)
+        generated_motion_np=sixd_to_smplx({'motion_6d': generated_motion_np[:,3:], 'transl': generated_motion_np[:,:3], 'betas': betas_np})
+    elif args.keypointtype=='openpose':
+        assert generated_motion_np.shape[1]==69
+        reference_np=reference_np.reshape(-1,23,3)
+        generated_motion_np=generated_motion_np.reshape(-1,23,3)
+    return generated_motion_np, reference_np
 
 def main():
     """
@@ -112,7 +228,7 @@ def main():
     # You can modify this to select a specific file.
     print("Loading a sample from the dataset...")
     
-    
+    use_sliding_window = False if args.input_motion_length >= 240 else True
 
 
     #TODO change sample dataset
@@ -143,22 +259,25 @@ def main():
         condition=condition.to(device)
         #print(reference.shape, condition.shape)  # shapes of the batch
         #print(f"Condition motion shape: {condition.shape}")
-
-        # --- Run the generation ---
-        generated_motion = sample(model, diffusion, condition, args)
-        generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
-        reference_np=reference.squeeze(0).cpu().numpy()
-        if args.keypointtype=='6d':
-            assert generated_motion_np.shape[1]==135
-            betas_np=betas.squeeze(0).cpu().numpy()
-            #generated_motion_np = gaussian_filter1d(generated_motion_np, sigma=1, axis=0)
-            generated_motion_np=sixd_to_smplx({'motion_6d': generated_motion_np[:,3:], 'transl': generated_motion_np[:,:3], 'betas': betas_np})
-        elif args.keypointtype=='openpose':
-            assert generated_motion_np.shape[1]==69
-            reference_np=reference_np.reshape(-1,23,3)
-            generated_motion_np=generated_motion_np.reshape(-1,23,3)
         ref_path=os.path.join(args.output_dir, "reference_motion_"+str(i)+".npy")
         gen_path=os.path.join(args.output_dir, "generated_motion_"+str(i)+".npy")
+        # --- Run the generation ---
+        if use_sliding_window:
+            generated_motion, generated_motion_concat = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window, sliding_window_step=10)
+            generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
+            generated_motion_concat_np = generated_motion_concat.squeeze(0).cpu().numpy()
+            reference_np=reference.squeeze(0).cpu().numpy()
+            generated_motion_np, reference_np = transform_motion_back(args, betas, generated_motion_np, reference_np)
+            generated_motion_concat_np, _ = transform_motion_back(args, betas, generated_motion_concat_np, reference_np)
+
+            gen_concat_path=os.path.join(args.output_dir, "generated_motion_concat_"+str(i)+".npy")
+            np.save(gen_concat_path, generated_motion_concat_np)
+        else:
+            generated_motion = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window, sliding_window_step=10)
+            generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
+            reference_np=reference.squeeze(0).cpu().numpy()
+            generated_motion_np, reference_np = transform_motion_back(args, betas, generated_motion_np, reference_np)
+
         np.save(ref_path, reference_np)
         np.save(gen_path, generated_motion_np)
 

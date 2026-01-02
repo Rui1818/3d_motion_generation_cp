@@ -151,6 +151,7 @@ class GaitDiffusionModel(GaussianDiffusion):
 
         #choose the loss function
         loss_func=self.masked_l2
+        #loss_func=self.masked_soft_dtw
 
         if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
             terms["loss"] = self._vb_terms_bpd(
