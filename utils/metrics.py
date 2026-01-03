@@ -8,7 +8,61 @@ import numpy as np
 from scipy.spatial.distance import euclidean
 from fastdtw import fastdtw
 
-def calculate_motion_dtw(motion1, motion2):
+def geodesic_distance_matrix(R1, R2):
+    """
+    Computes Geodesic Distance between two Rotation Matrices.
+    d = arccos( (Tr(R1 * R2^T) - 1) / 2 )
+    
+    Input: R1, R2 with shape (..., 3, 3)
+    Output: distances with shape (...)
+    """
+    # Compute R1 * R2^T
+    # swapaxes to transpose the last two dimensions
+    R_diff = np.matmul(R1, np.swapaxes(R2, -2, -1))
+    
+    # Trace is the sum of diagonal elements
+    trace = np.trace(R_diff, axis1=-2, axis2=-1)
+    
+    # Clamp values to [-1, 1] to avoid NaN in arccos due to float errors
+    trace = np.clip((trace - 1) / 2.0, -1.0, 1.0)
+    
+    # Return angle in radians
+    return np.arccos(trace)
+
+def bgs_numpy(d6s):
+    a1 = d6s[..., :3]
+    a2 = d6s[..., 3:]
+    b1 = a1 / np.clip(np.linalg.norm(a1, axis=-1, keepdims=True), 1e-8, None)
+    b2 = a2 - np.sum(b1 * a2, axis=-1, keepdims=True) * b1
+    b2 = b2 / np.clip(np.linalg.norm(b2, axis=-1, keepdims=True), 1e-8, None)
+    b3 = np.cross(b1, b2, axis=-1)
+    return np.stack([b1, b2, b3], axis=-1)
+
+def pose_distance_metric(frame_A, frame_B):
+    """
+    Custom distance function for DTW.
+    Input: Two flattened frames of 6D data (Shape: [Num_Joints * 6])
+    Output: Scalar distance (Average angular error in radians)
+    """
+    # 1. Reshape back to (Num_Joints, 6)
+    # Assuming standard SMPL 24 joints, change '24' to your joint count
+    n_joints = 22
+    
+    fA = frame_A.reshape(n_joints, 6)
+    fB = frame_B.reshape(n_joints, 6)
+    
+    # 2. Convert to Rotation Matrices (Num_Joints, 3, 3)
+    rmAT = bgs_numpy(fA)
+    rmBT = bgs_numpy(fB)
+    
+    # 3. Calculate Geodesic Distance for each joint
+    # Returns shape (Num_Joints,)
+    joint_errors = geodesic_distance_matrix(rmAT, rmBT)
+    
+    # 4. Return average error across all joints for this frame
+    return np.mean(joint_errors)
+
+def calculate_motion_dtw(motion1, motion2, distance_metric=euclidean):
     """
     Calculates DTW distance between two human motion sequences.
     
@@ -27,7 +81,7 @@ def calculate_motion_dtw(motion1, motion2):
     
     seq_a = motion1.reshape(motion1.shape[0], -1)
     seq_b = motion2.reshape(motion2.shape[0], -1)
-    distance, path = fastdtw(seq_a, seq_b, dist=euclidean)
+    distance, path = fastdtw(seq_a, seq_b, dist=distance_metric)
     
     return distance, path
 
