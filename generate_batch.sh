@@ -9,6 +9,7 @@
 #CONFIGS=("config1_new" "config2_new" "config3_new" "config4_new" "config5_new" "config6_new" "config7_new" "config25_new" "config26_new" "config27_new")
 
 CONFIGS=("config8_new" "config9_new" "config12_new" "config14_new" "config15_new" "config16_new" "config28_new" "config29_new" "config30_new")
+#CONFIGS=("config_sdtw3")
 # 2. List your model checkpoint names here (without the .pt extension)
 # The script assumes these specific filenames exist inside every config folder
 MODELS=("model000019513" "model000026013" "model000032513" "model000065013")
@@ -17,7 +18,7 @@ MODELS=("model000019513" "model000026013" "model000032513" "model000065013")
 INPUT_LENGTH=240
 KEYPOINT_TYPE="6d"
 BASE_TRAINING_DIR="my_training"
-BASE_RESULTS_DIR="results/baseline"
+BASE_RESULTS_DIR="results/sixd_baseline"
 
 # =================================================
 

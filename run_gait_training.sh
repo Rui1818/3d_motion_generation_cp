@@ -33,6 +33,7 @@ run_training() {
     local lambda_transl_vel=${10}
     local motionnfeatures=${11}
     local lr_anneal=${12}
+    local motion_length=${13}
 
     echo "--- Starting Training: $save_dir ---"
     echo "Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
@@ -40,7 +41,7 @@ run_training() {
     python gait_train.py \
         --save_dir "$save_dir" \
         --dataset_path "$DATASET_PATH" \
-        --input_motion_length "$MOTION_LENGTH" \
+        --input_motion_length "$motion_length" \
         --dataset "$DATASET_NAME" \
         --save_interval "$SAVE_INTERVAL" \
         --batch_size "$BATCH_SIZE" \
@@ -107,8 +108,40 @@ run_training() {
 #run_training "my_training/config29_new" 512 8 1e-4 75000 2e-4 6d 0 0.5 0.5 135 20000
 #run_training "my_training/config30_new" 512 12 1e-4 75000 2e-4 6d 0 0.5 0.5 135 20000
 #softdtw training
-#run_training "my_training/config_sdtw1" 512 8 1e-4 200000 2e-4 openpose 0 0 0.1 69 0
-#run_training "my_training/config_sdtw2" 512 8 1e-4 200000 2e-4 openpose 0 0 0.5 69 0
+#run_training "my_training/config_sdtw1" 512 8 1e-4 75000 2e-4 openpose 0 0 0 69 25000
+#run_training "my_training/config_sdtw2" 512 12 1e-4 75000 2e-4 openpose 0 0 0 69 25000
+#run_training "my_training/config_sdtw3" 512 8 1e-4 75000 2e-4 6d 0 0.5 0.5 135 25000
+
+
+#
+#local save_dir=$1
+#local latent_dim=$2
+#local layers=$3
+#local weight_decay=$4
+#local num_steps=$5
+#local lr=$6
+#local keypointtype=$7
+#local cond_mask_prob=$8
+#local lambda_rot_vel=$9
+#local lambda_transl_vel=${10}
+#local motionnfeatures=${11}
+#local lr_anneal=${12}
+#local motion_length=${13}
+
+#short motion windows
+run_training "my_training/config_window1" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 0 30
+run_training "my_training/config_window2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 0 30
+run_training "my_training/config_window3" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 30
+run_training "my_training/config_window4" 512 8 1e-4 160000 2e-4 openpose 0 0 0.5 69 0 60
+run_training "my_training/config_window5" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 0 60
+run_training "my_training/config_window6" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 60
+run_training "my_training/config_window7" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 0 30
+run_training "my_training/config_window8" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 0 30
+run_training "my_training/config_window9" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 30
+run_training "my_training/config_window10" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 0 60
+run_training "my_training/config_window11" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 0 60
+run_training "my_training/config_window12" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60
+
 
 
 # Config 4: Add more configs as you like...

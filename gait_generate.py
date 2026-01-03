@@ -9,7 +9,7 @@ from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 from data_loaders.dataloader3d import TestDataset, load_data, MotionDataset, get_dataloader
 from utils.transformation_sixd import sixd_to_smplx
 from scipy.ndimage import gaussian_filter1d
-from utils.metrics import calculate_motion_dtw
+from utils.metrics import calculate_motion_dtw, pose_distance_metric
 
 def remove_padding_3d_numpy(sequence):
     # sequence shape: (frames, x, y)
@@ -249,6 +249,7 @@ def main():
 
     # Initialize list to store DTW metrics
     dtw_metrics = []
+    #dtw_geodesic_metrics = []
 
     for i, batch in enumerate(tqdm(dataloader)):
         #6d case| keypoint case
@@ -295,6 +296,18 @@ def main():
                 'reference_frames': reference_np.shape[0],
                 'generated_frames': generated_motion_np.shape[0]
             })
+            #TODO geodesic distance for 6d case
+            """
+            if args.keypointtype=='6d':
+                dtw_distance_geodesic, path_geodesic = calculate_motion_dtw(reference_np, generated_motion_np, distance_metric=pose_distance_metric)
+                dtw_distance_geodesic=dtw_distance_geodesic/len(path_geodesic)
+                dtw_geodesic_metrics.append({
+                    'sample_id': i,
+                    'dtw_distance_geodesic': dtw_distance_geodesic,
+                    'reference_frames': reference_np.shape[0],
+                    'generated_frames': generated_motion_np.shape[0]
+                })
+                print(f"Sample {i} - DTW Geodesic Distance: {dtw_distance_geodesic:.4f}")"""
             print(f"Sample {i} - DTW Distance: {dtw_distance:.4f}")
         except Exception as e:
             print(f"Warning: Could not calculate DTW for sample {i}: {e}")
@@ -315,6 +328,20 @@ def main():
         metrics_path = os.path.join(args.output_dir, "dtw_metrics.npy")
         np.save(metrics_path, dtw_metrics)
         print(f"\nDTW metrics saved to: {metrics_path}")
+    """
+    if dtw_geodesic_metrics:
+        dtw_geodesic_distances = [m['dtw_distance_geodesic'] for m in dtw_geodesic_metrics]
+        print("\n=== DTW Geodesic Metrics Summary ===")
+        print(f"Total samples: {len(dtw_geodesic_metrics)}")
+        print(f"Mean DTW Geodesic Distance: {np.mean(dtw_geodesic_distances):.4f}")
+        print(f"Std DTW Geodesic Distance: {np.std(dtw_geodesic_distances):.4f}")
+        print(f"Min DTW Geodesic Distance: {np.min(dtw_geodesic_distances):.4f}")
+        print(f"Max DTW Geodesic Distance: {np.max(dtw_geodesic_distances):.4f}")
+
+        # Save geodesic metrics to file
+        geodesic_metrics_path = os.path.join(args.output_dir, "dtw_geodesic_metrics.npy")
+        np.save(geodesic_metrics_path, dtw_geodesic_metrics)
+        print(f"\nDTW geodesic metrics saved to: {geodesic_metrics_path}")"""
 
 if __name__ == "__main__":
     main()
