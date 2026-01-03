@@ -207,6 +207,10 @@ class TestDataset(Dataset):
                 last_frame_wo = motion_w_o[-1:]
                 padding_wo = last_frame_wo.repeat(frames_to_add, 1)
                 motion_w_o = torch.cat([motion_w_o, padding_wo], dim=0)
+        else:
+            # Truncate to input_motion_length if sequence is too long
+            motion_w_o = motion_w_o[:self.input_motion_length]
+            motion_w_o = normalize_motion(motion_w_o)
 
         """
         # Normalization
