@@ -95,37 +95,26 @@ class MotionDataset(Dataset):
         self.motion_clean = motion_clean
         self.motion_without_orth = motion_without_orth
 
-        # Create a list of action keys for indexing
-        self.action_keys = list(motion_clean.keys())
-
-        # Calculate base dataset length
-        self.base_length = sum(len(takes) for takes in motion_clean.values())
+        self.data_pairs = []
+        for action_key in motion_clean.keys():
+            c1_takes = motion_clean[action_key]
+            c2_takes = motion_without_orth[action_key]
+            for i in range(len(c1_takes)):
+                for j in range(len(c2_takes)):
+                    self.data_pairs.append((action_key, i, j))
 
     def __len__(self):
-        return self.base_length * self.train_dataset_repeat_times
+        return len(self.data_pairs) * self.train_dataset_repeat_times
 
     def inv_transform(self, data):
         return data * self.std + self.mean
 
     def __getitem__(self, idx):
-        # Map idx to an action
-        idx = idx % self.base_length
+        idx = idx % len(self.data_pairs)
+        action_key, c1_idx, c2_idx = self.data_pairs[idx]
 
-        cumulative = 0
-        selected_action = None
-        for action_key in self.action_keys:
-            num_c1_takes = len(self.motion_clean[action_key])
-            if idx < cumulative + num_c1_takes:
-                selected_action = action_key
-                break
-            cumulative += num_c1_takes
-
-        # Randomly sample one take from c1 and one from c2 for this action
-        c1_takes = self.motion_clean[selected_action]
-        c2_takes = self.motion_without_orth[selected_action]
-
-        motion = c1_takes[torch.randint(0, len(c1_takes), (1,)).item()]
-        motion_w_o = c2_takes[torch.randint(0, len(c2_takes), (1,)).item()]
+        motion = self.motion_clean[action_key][c1_idx]
+        motion_w_o = self.motion_without_orth[action_key][c2_idx]
 
         seqlen = motion.shape[0]
         seqlen_wo = motion_w_o.shape[0]
