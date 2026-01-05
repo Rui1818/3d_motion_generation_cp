@@ -227,8 +227,8 @@ def main():
     # This part is a simplified version of your dataloader to get one sample.
     # You can modify this to select a specific file.
     print("Loading a sample from the dataset...")
-    
     use_sliding_window = False if args.input_motion_length >= 240 else True
+    print(f"Using sliding window: {use_sliding_window}")
 
 
     #TODO change sample dataset

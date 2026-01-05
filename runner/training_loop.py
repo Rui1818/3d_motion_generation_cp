@@ -201,6 +201,7 @@ class TrainLoop:
         self.model.eval()
         val_losses = []
         val_dtw_losses = []
+        val_dtw_losses_geo = []
 
         with torch.no_grad():
             for seqlen, motion, cond in self.val_data:
@@ -228,6 +229,8 @@ class TrainLoop:
                 val_losses.append(loss.item())
                 if "dtw_loss" in losses:
                     val_dtw_losses.append(losses["dtw_loss"].item())
+                if "dtw_loss_geodesic" in losses:
+                    val_dtw_losses_geo.append(losses["dtw_loss_geodesic"].item())
 
         # Log average validation loss
         avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0.0
@@ -235,6 +238,9 @@ class TrainLoop:
         if val_dtw_losses:
             avg_val_dtw_loss = sum(val_dtw_losses) / len(val_dtw_losses)
             logger.logkv("val_dtw_loss", avg_val_dtw_loss)
+        if val_dtw_losses_geo:
+            avg_val_dtw_loss_geo = sum(val_dtw_losses_geo) / len(val_dtw_losses_geo)
+            logger.logkv("val_dtw_loss_geodesic", avg_val_dtw_loss_geo)
 
         self.model.train()
 
