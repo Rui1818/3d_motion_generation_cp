@@ -212,7 +212,7 @@ class TestDataset(Dataset):
     
 
 
-def load_data(motion_path, split, keypointtype="openpose",**kwargs):
+def load_data(motion_path, split, keypointtype,**kwargs):
     """
     Load SMPL keypoint .npy files from a folder into dictionaries organized by action.
 

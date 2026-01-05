@@ -102,6 +102,7 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
     batch_size = cond_motion.shape[0]
     total_frames = cond_motion.shape[1]
     window_size = args.input_motion_length
+    
 
     if not use_sliding_window:
         # Original behavior: generate entire motion at once
@@ -168,6 +169,7 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
         # For the first window, take all frames
         if window_idx == 0:
             all_generated_frames.append(generated_window)
+            generated_frames_concat.append(generated_window)
         # For subsequent windows, only take the new frames (after the overlap)
         else:
             #TODO apply smoothing between windows
@@ -184,6 +186,7 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
 
     # Concatenate all generated frames
     generated_motion = torch.cat(all_generated_frames, dim=1)
+
     generated_motion_concat = torch.cat(generated_frames_concat, dim=1)
     """
     # Trim to match the original total_frames if needed
@@ -198,16 +201,20 @@ def transform_motion_back(args, betas, generated_motion_np, reference_np):
         betas_np=betas.squeeze(0).cpu().numpy()
         #generated_motion_np = gaussian_filter1d(generated_motion_np, sigma=1, axis=0)
         generated_motion_np=sixd_to_smplx({'motion_6d': generated_motion_np[:,3:], 'transl': generated_motion_np[:,:3], 'betas': betas_np})
-        reference_np=sixd_to_smplx({'motion_6d': reference_np[:,3:], 'transl': reference_np[:,:3], 'betas': betas_np})
+        if reference_np is not None:
+            reference_np=sixd_to_smplx({'motion_6d': reference_np[:,3:], 'transl': reference_np[:,:3], 'betas': betas_np})
     elif args.keypointtype=='openpose':
         assert generated_motion_np.shape[1]==69
-        reference_np=reference_np.reshape(-1,23,3)
         generated_motion_np=generated_motion_np.reshape(-1,23,3)
+        if reference_np is not None:
+            reference_np=reference_np.reshape(-1,23,3)
     return generated_motion_np, reference_np
 
 def calculate_dtw(reference_np, generated_motion_np, keypointtype, index, list_dtw):
     if keypointtype=='openpose':
         assert generated_motion_np.shape[1]==69
+        generated_motion_np=change_motion_position(generated_motion_np)
+        reference_np=change_motion_position(reference_np)
         dtw_distance, path = fastdtw.fastdtw(reference_np, generated_motion_np)
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
         res={'sample_id': index, 'dtw_distance': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
@@ -265,6 +272,7 @@ def main():
     #cond_motion = prepare_conditional_motion(file_path, args.input_motion_length).to(device)
     #cond_motion_turn = prepare_conditional_motion(file_path_turn, args.input_motion_length).to(device)
     print("Generating motion...")
+    print(args.keypointtype)
         # Create an output directory if it doesn't exist
     if not args.output_dir:
         name, _ = os.path.splitext(os.path.basename(args.model_path))
@@ -293,7 +301,7 @@ def main():
             generated_motion_concat_np = generated_motion_concat.squeeze(0).cpu().numpy()
             reference_np=reference.squeeze(0).cpu().numpy()
             generated_motion_np, reference_np = transform_motion_back(args, betas, generated_motion_np, reference_np)
-            generated_motion_concat_np, _ = transform_motion_back(args, betas, generated_motion_concat_np, reference_np)
+            generated_motion_concat_np, _ = transform_motion_back(args, betas, generated_motion_concat_np, None)
 
             gen_concat_path=os.path.join(args.output_dir, "generated_motion_concat_"+str(i)+".npy")
             np.save(gen_concat_path, generated_motion_concat_np)

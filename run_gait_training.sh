@@ -129,21 +129,21 @@ run_training() {
 #local motion_length=${13}
 
 #short motion windows
-run_training "my_training/config_window1" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 0 30
-run_training "my_training/config_window2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 0 30
-run_training "my_training/config_window3" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 30
-run_training "my_training/config_window4" 512 8 1e-4 160000 2e-4 openpose 0 0 0.5 69 0 60
-run_training "my_training/config_window5" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 0 60
-run_training "my_training/config_window6" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 60
-run_training "my_training/config_window7" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 0 30
-run_training "my_training/config_window8" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 0 30
-run_training "my_training/config_window9" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 30
-run_training "my_training/config_window10" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 0 60
-run_training "my_training/config_window11" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 0 60
-run_training "my_training/config_window12" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60
+#run_training "my_training/config_window1" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 0 30
+#run_training "my_training/config_window2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 0 30
+#run_training "my_training/config_window3" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 30
+#run_training "my_training/config_window4" 512 8 1e-4 160000 2e-4 openpose 0 0 0.5 69 0 60
+#run_training "my_training/config_window5" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 0 60
+#run_training "my_training/config_window6" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 60
+#run_training "my_training/config_window7" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 0 30
+#run_training "my_training/config_window8" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 0 30
+#run_training "my_training/config_window9" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 30
+#run_training "my_training/config_window10" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 0 60
+#run_training "my_training/config_window11" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 0 60
+#run_training "my_training/config_window12" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60
 
 #softdtw with short windows
-#run_training "my_training/config_window14" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60
+run_training "my_training/config_window14" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60
 #run_training "my_training/config_window13" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 60
 
 # Config 4: Add more configs as you like...
