@@ -297,9 +297,10 @@ def load_data(motion_path, split, keypointtype="openpose",**kwargs):
                 no_orth_path = take[0] + '_c2_' + "_".join(take[2:])
 
                 if keypointtype == "6d":
-                    c1_path = os.path.join(patient_path, file, "split_subjects", "0", "fit-smplx", "smpl-keypoints-3d_cut.npy")
+                    c1_path = os.path.join(patient_path, file, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")
                     c2_path = os.path.join(patient_path, no_orth_path, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")
-                    motion_clean.append(torch.tensor(np.load(c1_path), dtype=torch.float32))
+                    #motion_clean.append(torch.tensor(np.load(c1_path), dtype=torch.float32))
+                    motion_clean,_ = load_6drotations(c1_path, motion_clean)
                     motion_w_o, beta = load_6drotations(c2_path, motion_w_o)
                     betas.append(beta)
                 elif keypointtype == "openpose":

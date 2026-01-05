@@ -1,5 +1,6 @@
 import os
 import random
+import fastdtw
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -7,7 +8,7 @@ from tqdm import tqdm
 from utils.parser_util import sample_args
 from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 from data_loaders.dataloader3d import TestDataset, load_data, MotionDataset, get_dataloader
-from utils.transformation_sixd import sixd_to_smplx
+from utils.transformation_sixd import sixd_to_smplx, smplx_to_6d
 from scipy.ndimage import gaussian_filter1d
 from utils.metrics import calculate_motion_dtw, pose_distance_metric
 
@@ -197,11 +198,34 @@ def transform_motion_back(args, betas, generated_motion_np, reference_np):
         betas_np=betas.squeeze(0).cpu().numpy()
         #generated_motion_np = gaussian_filter1d(generated_motion_np, sigma=1, axis=0)
         generated_motion_np=sixd_to_smplx({'motion_6d': generated_motion_np[:,3:], 'transl': generated_motion_np[:,:3], 'betas': betas_np})
+        reference_np=sixd_to_smplx({'motion_6d': reference_np[:,3:], 'transl': reference_np[:,:3], 'betas': betas_np})
     elif args.keypointtype=='openpose':
         assert generated_motion_np.shape[1]==69
         reference_np=reference_np.reshape(-1,23,3)
         generated_motion_np=generated_motion_np.reshape(-1,23,3)
     return generated_motion_np, reference_np
+
+def calculate_dtw(reference_np, generated_motion_np, keypointtype, index, list_dtw):
+    if keypointtype=='openpose':
+        assert generated_motion_np.shape[1]==69
+        dtw_distance, path = fastdtw.fastdtw(reference_np, generated_motion_np)
+        dtw_distance=dtw_distance/len(path)  # normalize by length of path
+        res={'sample_id': index, 'dtw_distance': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
+        list_dtw.append(res)
+        return 
+    elif keypointtype=='6d':
+        assert generated_motion_np.shape[1]==135
+        ref_sixd=reference_np[:,3:]
+        gen_sixd=generated_motion_np[:,3:]
+        dtw_distance, path = fastdtw.fastdtw(reference_np[:, :3], generated_motion_np[:, :3]) # translation part
+        dtw_distance=dtw_distance/len(path)  # normalize by length of path
+        dtw_distance_geodesic, path = fastdtw.fastdtw(ref_sixd, gen_sixd, dist=pose_distance_metric)
+        dtw_distance_geodesic=dtw_distance_geodesic/len(path)  # normalize by length of path
+        res={'sample_id': index, 'dtw_distance_geodesic':dtw_distance_geodesic, 'dtw_distance': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
+        list_dtw.append(res)
+        return 
+    else:
+        raise ValueError("Unknown keypoint type for DTW calculation.")
 
 def main():
     """
@@ -275,42 +299,14 @@ def main():
             np.save(gen_concat_path, generated_motion_concat_np)
         else:
             generated_motion = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window, sliding_window_step=10)
+
             generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
             reference_np=reference.squeeze(0).cpu().numpy()
+            calculate_dtw(reference_np, generated_motion_np, args.keypointtype, i, dtw_metrics)
             generated_motion_np, reference_np = transform_motion_back(args, betas, generated_motion_np, reference_np)
 
         np.save(ref_path, reference_np)
         np.save(gen_path, generated_motion_np)
-
-        # Calculate DTW between reference and generated motion
-        try:
-            #remove padding
-            #generated_motion_np=remove_padding_3d_numpy(generated_motion_np)
-            generated_motion_np=generated_motion_np-generated_motion_np[0,0,:]
-            reference_np=reference_np-reference_np[0,0,:]
-            dtw_distance, path = calculate_motion_dtw(reference_np, generated_motion_np)
-            dtw_distance=dtw_distance/len(path)  # normalize by length of path
-            dtw_metrics.append({
-                'sample_id': i,
-                'dtw_distance': dtw_distance,
-                'reference_frames': reference_np.shape[0],
-                'generated_frames': generated_motion_np.shape[0]
-            })
-            #TODO geodesic distance for 6d case
-            """
-            if args.keypointtype=='6d':
-                dtw_distance_geodesic, path_geodesic = calculate_motion_dtw(reference_np, generated_motion_np, distance_metric=pose_distance_metric)
-                dtw_distance_geodesic=dtw_distance_geodesic/len(path_geodesic)
-                dtw_geodesic_metrics.append({
-                    'sample_id': i,
-                    'dtw_distance_geodesic': dtw_distance_geodesic,
-                    'reference_frames': reference_np.shape[0],
-                    'generated_frames': generated_motion_np.shape[0]
-                })
-                print(f"Sample {i} - DTW Geodesic Distance: {dtw_distance_geodesic:.4f}")"""
-            print(f"Sample {i} - DTW Distance: {dtw_distance:.4f}")
-        except Exception as e:
-            print(f"Warning: Could not calculate DTW for sample {i}: {e}")
 
     print("Motion generation complete.")
 
@@ -328,20 +324,6 @@ def main():
         metrics_path = os.path.join(args.output_dir, "dtw_metrics.npy")
         np.save(metrics_path, dtw_metrics)
         print(f"\nDTW metrics saved to: {metrics_path}")
-    """
-    if dtw_geodesic_metrics:
-        dtw_geodesic_distances = [m['dtw_distance_geodesic'] for m in dtw_geodesic_metrics]
-        print("\n=== DTW Geodesic Metrics Summary ===")
-        print(f"Total samples: {len(dtw_geodesic_metrics)}")
-        print(f"Mean DTW Geodesic Distance: {np.mean(dtw_geodesic_distances):.4f}")
-        print(f"Std DTW Geodesic Distance: {np.std(dtw_geodesic_distances):.4f}")
-        print(f"Min DTW Geodesic Distance: {np.min(dtw_geodesic_distances):.4f}")
-        print(f"Max DTW Geodesic Distance: {np.max(dtw_geodesic_distances):.4f}")
-
-        # Save geodesic metrics to file
-        geodesic_metrics_path = os.path.join(args.output_dir, "dtw_geodesic_metrics.npy")
-        np.save(geodesic_metrics_path, dtw_geodesic_metrics)
-        print(f"\nDTW geodesic metrics saved to: {geodesic_metrics_path}")"""
 
 if __name__ == "__main__":
     main()
