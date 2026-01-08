@@ -198,7 +198,10 @@ class TestDataset(Dataset):
                 motion_w_o = torch.cat([motion_w_o, padding_wo], dim=0)
         else:
             # Truncate to input_motion_length if sequence is too long
-            motion_w_o = motion_w_o[:self.input_motion_length]
+            if self.input_motion_length >= 240:
+                motion_w_o = motion_w_o[:self.input_motion_length]
+            else:
+                motion_w_o = motion_w_o
             motion_w_o = normalize_motion(motion_w_o)
 
         """
