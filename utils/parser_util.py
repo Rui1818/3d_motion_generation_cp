@@ -247,6 +247,13 @@ def add_training_options(parser):
         type=int,
         help="Number of dataloader workers.",
     )
+    group.add_argument(
+        "--loss_func",
+        choices=["softdtw", "mse"],
+        default="mse",
+        type=str,
+        help="Choose loss function",
+    )
 
 
 def add_sampling_options(parser):

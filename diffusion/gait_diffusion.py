@@ -47,6 +47,7 @@ class GaitDiffusionModel(GaussianDiffusion):
         self.lambda_transl_vel = kwargs.pop("lambda_transl_vel", 0.0)
         self.soft_dtw_gamma = kwargs.pop("soft_dtw_gamma", 1.0)
         self.soft_dtw_normalize = kwargs.pop("soft_dtw_normalize", False)
+        self.loss_func = kwargs.pop("loss_func", "mse")  # "mse" or "softdtw"
         super(GaitDiffusionModel, self).__init__(
             **kwargs,
         )
@@ -151,8 +152,7 @@ class GaitDiffusionModel(GaussianDiffusion):
         terms = {}
 
         #choose the loss function
-        loss_func=self.masked_l2
-        #loss_func=self.masked_soft_dtw
+        loss_func = self.masked_soft_dtw if self.loss_func == "softdtw" else self.masked_l2
 
         if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
             terms["loss"] = self._vb_terms_bpd(

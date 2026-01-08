@@ -131,7 +131,7 @@ if __name__ == "__main__":
         "configsoftdtw",
 
     ]
-    root="results/new"
+    root="results/window60"
     v=Viewer()
     reference=None
     i=5
@@ -149,7 +149,7 @@ if __name__ == "__main__":
                 reference=np.load(reference_path)
                 reference=repair_data(reference)
                 reference=subtract_root(reference)
-                print(reference.shape)
+                #print(reference.shape)
                 condition=np.load(conditionpaths[i])
                 condition=subtract_root(condition)
                 add_keypoints(condition, v, "Condition Motion", color=(0.0, 1.0, 0.0, 1))
