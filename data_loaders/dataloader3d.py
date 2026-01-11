@@ -70,6 +70,20 @@ def normalize_motion(motion):
         motion[:, :3] = motion[:, :3] - root
     return motion
 
+def sample_matching_startframe(motion_clean, match_dict, key, idx, window_size):
+    _ , matching_frame = match_dict[key][idx]
+    seqlen = motion_clean.shape[0]
+    #padding if needed
+    if matching_frame + window_size > seqlen:
+        frames_to_add = window_size - seqlen
+        last_frame = motion_clean[-1:]
+        padding = last_frame.repeat(frames_to_add, 1)
+        res = torch.cat([motion_clean, padding], dim=0)
+    else:
+        res=motion_clean[matching_frame:matching_frame+window_size]
+    return normalize_motion(res)
+
+
 class MotionDataset(Dataset):
     def __init__(
         self,
@@ -97,14 +111,45 @@ class MotionDataset(Dataset):
 
         self.data_pairs = []
         for action_key in motion_clean.keys():
-            c1_takes = motion_clean[action_key]
-            c2_takes = motion_without_orth[action_key]
-            for i in range(len(c1_takes)):
-                for j in range(len(c2_takes)):
-                    self.data_pairs.append((action_key, i, j))
+            if "a3" in action_key and "gait_052" not in action_key and "gait_682" not in action_key and "gait_700" not in action_key:
+                c1_takes = motion_clean[action_key]
+                c2_takes = motion_without_orth[action_key]
+                for i in range(len(c1_takes)):
+                    for j in range(len(c2_takes)):
+                        if i%2==j%2:
+                            self.data_pairs.append((action_key, i, j))
+            else:
+                c1_takes = motion_clean[action_key]
+                c2_takes = motion_without_orth[action_key]
+                for i in range(len(c1_takes)):
+                    for j in range(len(c2_takes)):
+                        self.data_pairs.append((action_key, i, j))
+        
+        if self.input_motion_length in [30, 60]:
+            match_dict_path="prepare_data/match_dict_window30.npy" if self.input_motion_length==30 else "prepare_data/match_dict_window60.npy"
+            self.matching_dict=np.load(match_dict_path, allow_pickle=True).item()
+        else:
+            self.matching_dict=None
 
     def __len__(self):
         return len(self.data_pairs) * self.train_dataset_repeat_times
+
+    def _get_window(self, motion, window_size):
+        seqlen = motion.shape[0]
+        start_idx = 0
+        
+        if seqlen <= window_size:
+            if seqlen > 0:
+                frames_to_add = window_size - seqlen
+                last_frame = motion[-1:]
+                padding = last_frame.repeat(frames_to_add, 1)
+                motion = torch.cat([motion, padding], dim=0)
+        else:
+            start_idx = torch.randint(0, int(seqlen - window_size), (1,))[0]
+            motion = motion[start_idx : start_idx + window_size]
+            
+        motion = normalize_motion(motion)
+        return motion, start_idx
 
     def inv_transform(self, data):
         return data * self.std + self.mean
@@ -115,32 +160,16 @@ class MotionDataset(Dataset):
 
         motion = self.motion_clean[action_key][c1_idx]
         motion_w_o = self.motion_without_orth[action_key][c2_idx]
+        key=action_key+str(c2_idx)+str(c1_idx)
 
         seqlen = motion.shape[0]
-        seqlen_wo = motion_w_o.shape[0]
-
         
-        if seqlen <= self.input_motion_length:
-            if seqlen > 0:
-                frames_to_add = self.input_motion_length - seqlen
-                last_frame = motion[-1:]
-                padding = last_frame.repeat(frames_to_add, 1)
-                motion = torch.cat([motion, padding], dim=0)
-        else:
-            sampleidx = torch.randint(0, int(seqlen - self.input_motion_length), (1,))[0]
-            motion = motion[sampleidx:sampleidx+self.input_motion_length]
-            motion=normalize_motion(motion)
+        motion_w_o, sampleidx_wo = self._get_window(motion_w_o, self.input_motion_length)
 
-        if seqlen_wo <= self.input_motion_length:
-            if seqlen_wo > 0:
-                frames_to_add = self.input_motion_length - seqlen_wo
-                last_frame_wo = motion_w_o[-1:]
-                padding_wo = last_frame_wo.repeat(frames_to_add, 1)
-                motion_w_o = torch.cat([motion_w_o, padding_wo], dim=0)
+        if self.matching_dict is not None:
+            motion = sample_matching_startframe(motion, self.matching_dict, key, sampleidx_wo, self.input_motion_length)
         else:
-            sampleidx_wo = torch.randint(0, int(seqlen_wo - self.input_motion_length), (1,))[0]
-            motion_w_o = motion_w_o[sampleidx_wo:sampleidx_wo+self.input_motion_length]
-            motion_w_o=normalize_motion(motion_w_o)
+            motion, _ = self._get_window(motion, self.input_motion_length)
 
         """
         # Normalization

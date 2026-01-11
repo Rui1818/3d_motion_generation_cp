@@ -236,18 +236,19 @@ def visualize_smpl_keypoints(smplkeypoints_path):
 
 def visualiza_gait_batch(root):
     v=Viewer()
+    """
     ply_data = PlyData.read("floor_c1_a3.ply")
     vertices = ply_data['vertex']
     floor_points = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
     
     # Create point cloud (add a frame dimension if needed)
     floor_pc = PointClouds(floor_points[np.newaxis, :, :], name="MyFloor", point_size=2.0)
-    v.scene.add(floor_pc)
+    v.scene.add(floor_pc)"""
     for take in os.listdir(root):
         cond=take.split("_")
-        """
-        if cond[2]!="a3" and cond[2]!="a5":
-            continue"""
+        
+        if cond[2]!="a3":
+            continue
         if cond[1]=="c1":
             c2 = cond[0]+'_c2_'+"_".join(cond[2:])
             keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
@@ -271,7 +272,7 @@ if __name__ == "__main__":
     # Set the path to your SMPL models
     C.smplx_models = "smpl_models/"
 
-    root="test_dataset"
+    root="mydataset"
     #root="test_dataset"
     smplpart="split_subjects/0/fit-smplx/smplx-params.npz"
     keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
@@ -285,6 +286,6 @@ if __name__ == "__main__":
     smplseq2= os.path.join(root, ref_take, smplpart)
     #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
-    visualiza_gait_batch(root+"/gait_753")
-    #visualize_gait('test.npy', 'mydataset/gait_011/20251107_c1_a1_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy')
+    visualiza_gait_batch(root+"/gait_766")
+    #visualize_gait('mydataset/gait_682/20250919_c1_a3_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy', 'mydataset/gait_682/20250919_c2_a3_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy')
 

@@ -176,12 +176,11 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
             # Take only the frames that extend beyond previous windows
             frames_to_take = min(sliding_window_step, end_idx - start_idx)
 
-            frame_offset = all_generated_frames[-1][:, -1:, :]
-            frame_offset=frame_offset.squeeze(0)  # (1, features)
+            frame_offset = all_generated_frames[-1][:, -1:, :]  # (1, features)
 
-            #generated_window =change_motion_position(generated_window, offset=frame_offset)
             all_generated_frames.append(generated_window)
-            generated_window = generated_window[:, frames_to_take:, :]
+            generated_window=change_motion_position(generated_window, offset=frame_offset)
+            generated_window = generated_window[:, -frames_to_take:, :]
             generated_frames_concat.append(generated_window)
 
     # Concatenate all generated frames

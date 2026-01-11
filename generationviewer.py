@@ -131,7 +131,7 @@ if __name__ == "__main__":
         "configsoftdtw",
 
     ]
-    root="results/window60"
+    root="results/window60_new"
     v=Viewer()
     reference=None
     i=5
