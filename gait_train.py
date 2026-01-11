@@ -108,6 +108,7 @@ def main():
         val_motion_clean,
         val_motion_w_o,
         input_motion_length=args.input_motion_length,
+        mode="test",
     )
     print("validation dataset size:", len(val_dataset))
 

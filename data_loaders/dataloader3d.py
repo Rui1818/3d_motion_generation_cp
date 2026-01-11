@@ -95,6 +95,7 @@ class MotionDataset(Dataset):
         input_motion_length=196,
         train_dataset_repeat_times=1,
         no_normalization=False,
+        mode="train",
     ):
         self.dataset = dataset
         self.mean = mean
@@ -126,7 +127,10 @@ class MotionDataset(Dataset):
                         self.data_pairs.append((action_key, i, j))
         
         if self.input_motion_length in [30, 60]:
-            match_dict_path="prepare_data/match_dict_window30.npy" if self.input_motion_length==30 else "prepare_data/match_dict_window60.npy"
+            if mode=="train":
+                match_dict_path="prepare_data/match_dict_window30.npy" if self.input_motion_length==30 else "prepare_data/match_dict_window60.npy"
+            else:
+                match_dict_path="prepare_data/match_dict_window30_test.npy" if self.input_motion_length==30 else "prepare_data/match_dict_window60_test.npy"
             self.matching_dict=np.load(match_dict_path, allow_pickle=True).item()
         else:
             self.matching_dict=None
