@@ -98,6 +98,13 @@ def add_diffusion_options(parser):
     group.add_argument(
         "--sigma_small", default=True, type=bool, help="Use smaller sigma values."
     )
+    group.add_argument(
+        "--loss_func",
+        choices=["softdtw", "mse"],
+        default="mse",
+        type=str,
+        help="Choose loss function",
+    )
 
 
 def add_model_options(parser):
@@ -246,13 +253,6 @@ def add_training_options(parser):
         default=8,
         type=int,
         help="Number of dataloader workers.",
-    )
-    group.add_argument(
-        "--loss_func",
-        choices=["softdtw", "mse"],
-        default="mse",
-        type=str,
-        help="Choose loss function",
     )
 
 
