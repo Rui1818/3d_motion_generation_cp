@@ -180,8 +180,8 @@ class TrainLoop:
         if not self.lr_anneal_steps:
             return
         if (self.step + self.resume_step) > self.lr_anneal_steps:
-            #self.lr = self.lr / 30.0
-            self.lr = self.lr / 20.0
+            self.lr = self.lr / 30.0
+            #self.lr = self.lr / 20.0
             self.lr_anneal_steps = False
         else:
             self.lr = self.lr

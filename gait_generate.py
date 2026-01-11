@@ -75,14 +75,15 @@ def change_motion_position(motion, offset=None):
     if motion.shape[1]==69:
         # 1. Calculate the root (average of joint 7 and joint 10) 
         # Joint 7 is indices 21:24, Joint 10 is indices 30:33
-        root = (motion[0, 21:24] + motion[0, 30:33]) / 2 if offset is None else -1*((offset_val[21:24] + offset_val[30:33]) / 2)
+        root=(motion[0, 21:24] + motion[0, 30:33]) / 2
+        root = root if offset is None else root-((offset_val[21:24] + offset_val[30:33]) / 2)
         # 2. Subtract the root from the motion data
         # We subtract root[0] from all X's, root[1] from all Y's, and root[2] from all Z's
         motion[:, 0::3] -= root[0]  # All X coordinates
         motion[:, 1::3] -= root[1]  # All Y coordinates
         motion[:, 2::3] -= root[2]  # All Z coordinates
     elif motion.shape[1]==135:
-        root = motion[0, :3] if offset is None else -1*offset_val[:3]
+        root = motion[0, :3] if offset is None else motion[0, :3]-offset_val[:3]
         motion[:, :3] = motion[:, :3] - root
     else:
         raise ValueError("Unknown motion dimension for normalization.")
@@ -144,7 +145,7 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
         end_idx = min(start_idx + window_size, total_frames)
 
         # Extract window from conditional motion
-        cond_window = cond_motion[:, start_idx:end_idx, :]
+        cond_window = cond_motion[:, start_idx:end_idx, :].clone()
         #root normalization for inference
         cond_window = change_motion_position(cond_window)
 
@@ -181,12 +182,12 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
             # Take only the frames that extend beyond previous windows
             frames_to_take = min(sliding_window_step, end_idx - start_idx)
 
-            frame_offset = all_generated_frames[-1][:, -1:, :]  # (1, features)
+            frame_offset = generated_frames_concat[-1][:, -1:, :]  
 
             all_generated_frames.append(generated_window)
-            generated_window = generated_window[:, -frames_to_take:, :]
-            #generated_window=change_motion_position(generated_window, offset=frame_offset)
-            generated_frames_concat.append(generated_window)
+            generated_window_slice = generated_window[:, -frames_to_take:, :].clone()
+            generated_window_concat=change_motion_position(generated_window_slice, offset=frame_offset)
+            generated_frames_concat.append(generated_window_concat)
 
     # Concatenate all generated frames
     generated_motion = torch.cat(all_generated_frames, dim=1)
@@ -304,6 +305,7 @@ def main():
             generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
             generated_motion_concat_np = generated_motion_concat.squeeze(0).cpu().numpy()
             reference_np=reference.squeeze(0).cpu().numpy()
+            calculate_dtw(reference_np, generated_motion_concat_np, args.keypointtype, i, dtw_metrics)
             generated_motion_np, reference_np = transform_motion_back(args, betas, generated_motion_np, reference_np)
             generated_motion_concat_np, _ = transform_motion_back(args, betas, generated_motion_concat_np, None)
 
