@@ -75,10 +75,13 @@ def sample_matching_startframe(motion_clean, match_dict, key, idx, window_size):
     seqlen = motion_clean.shape[0]
     #padding if needed
     if matching_frame + window_size > seqlen:
-        frames_to_add = window_size - seqlen
-        last_frame = motion_clean[-1:]
-        padding = last_frame.repeat(frames_to_add, 1)
-        res = torch.cat([motion_clean, padding], dim=0)
+        if window_size > seqlen:
+            frames_to_add = window_size - seqlen
+            last_frame = motion_clean[-1:]
+            padding = last_frame.repeat(frames_to_add, 1)
+            res = torch.cat([motion_clean, padding], dim=0)
+        else:
+            res = motion_clean[seqlen - window_size:seqlen]
     else:
         res=motion_clean[matching_frame:matching_frame+window_size]
     return normalize_motion(res)
@@ -134,6 +137,7 @@ class MotionDataset(Dataset):
             self.matching_dict=np.load(match_dict_path, allow_pickle=True).item()
         else:
             self.matching_dict=None
+        
 
     def __len__(self):
         return len(self.data_pairs) * self.train_dataset_repeat_times
