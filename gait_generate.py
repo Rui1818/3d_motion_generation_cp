@@ -66,6 +66,11 @@ def prepare_conditional_motion(file_path, input_motion_length, keypointtype):
 def change_motion_position(motion, offset=None):
     #motion: tensor (1, frames, dim)
     #only batch size 1 supported
+    if motion.shape[1]==22:
+        root=motion[0,0,:]
+        motion=motion - root
+        return motion
+
     motion=motion.squeeze(0)  # (frames, dim)
     
     offset_val = None
@@ -90,7 +95,19 @@ def change_motion_position(motion, offset=None):
     motion=motion.unsqueeze(0)
     return motion
 
-def sample(model, diffusion, cond_motion, args, use_sliding_window=False, sliding_window_step=10):
+def linear_blend_motion(motion1, motion2):
+    # motion1: (B, L, D) - fading out
+    # motion2: (B, L, D) - fading in
+    
+    length = motion1.shape[1]
+    device = motion1.device
+    
+    alpha = torch.linspace(0, 1, length, device=device).view(1, -1, 1)
+    blended = (1 - alpha) * motion1 + alpha * motion2
+    return blended
+
+
+def sample(model, diffusion, cond_motion, args, use_sliding_window=False, sliding_window_step=20):
     """
     Generates motion samples using the diffusion model conditioned on the provided motion.
 
@@ -137,11 +154,16 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
     all_generated_frames = []
     generated_frames_concat=[]
 
-    # Calculate number of windows needed
-    num_windows = max(1, (total_frames - window_size) // sliding_window_step + 1)
+    # Calculate start indices for windows
+    start_indices = list(range(0, total_frames - window_size + 1, sliding_window_step))
+    if not start_indices:
+        start_indices = [0]
+    elif start_indices[-1] + window_size < total_frames:
+        start_indices.append(total_frames - window_size)
+    
+    last_concat_end_idx = 0
 
-    for window_idx in range(num_windows):
-        start_idx = window_idx * sliding_window_step
+    for window_idx, start_idx in enumerate(start_indices):
         end_idx = min(start_idx + window_size, total_frames)
 
         # Extract window from conditional motion
@@ -176,18 +198,28 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
         if window_idx == 0:
             all_generated_frames.append(generated_window)
             generated_frames_concat.append(generated_window)
+            last_concat_end_idx = window_size
         # For subsequent windows, only take the new frames (after the overlap)
         else:
             #TODO apply smoothing between windows
             # Take only the frames that extend beyond previous windows
-            frames_to_take = min(sliding_window_step, end_idx - start_idx)
+            frames_to_take = start_idx + window_size - last_concat_end_idx
 
-            frame_offset = generated_frames_concat[-1][:, -1:, :]  
-
+            frame_offset = generated_frames_concat[-1][:, -1:, :]
+            overlaplen=window_size - frames_to_take  
+            # append full window
             all_generated_frames.append(generated_window)
+
+            # overlap motion blending
+            previously_generated_overlap = generated_frames_concat[-1][:, -overlaplen:, :].clone()
+            generated_window_overlap = generated_window[:, :overlaplen, :].clone()
+            generated_window_blended = linear_blend_motion(previously_generated_overlap, generated_window_overlap)
+            generated_frames_concat[-1][:, -overlaplen:, :] = generated_window_blended
             generated_window_slice = generated_window[:, -frames_to_take:, :].clone()
             generated_window_concat=change_motion_position(generated_window_slice, offset=frame_offset)
             generated_frames_concat.append(generated_window_concat)
+            
+            last_concat_end_idx += frames_to_take
 
     # Concatenate all generated frames
     generated_motion = torch.cat(all_generated_frames, dim=1)
@@ -215,7 +247,7 @@ def transform_motion_back(args, betas, generated_motion_np, reference_np):
             reference_np=reference_np.reshape(-1,23,3)
     return generated_motion_np, reference_np
 
-def calculate_dtw(reference_np, generated_motion_np, keypointtype, index, list_dtw):
+def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
     if keypointtype=='openpose':
         assert generated_motion_np.shape[1]==69
         generated_motion_np=change_motion_position(generated_motion_np)
@@ -223,8 +255,7 @@ def calculate_dtw(reference_np, generated_motion_np, keypointtype, index, list_d
         dtw_distance, path = fastdtw.fastdtw(reference_np, generated_motion_np)
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
         res={'sample_id': index, 'dtw_distance': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
-        list_dtw.append(res)
-        return 
+        return res
     elif keypointtype=='6d':
         assert generated_motion_np.shape[1]==135
         ref_sixd=reference_np[:,3:]
@@ -233,9 +264,17 @@ def calculate_dtw(reference_np, generated_motion_np, keypointtype, index, list_d
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
         dtw_distance_geodesic, path = fastdtw.fastdtw(ref_sixd, gen_sixd, dist=pose_distance_metric)
         dtw_distance_geodesic=dtw_distance_geodesic/len(path)  # normalize by length of path
-        res={'sample_id': index, 'dtw_distance_geodesic':dtw_distance_geodesic, 'dtw_distance': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
-        list_dtw.append(res)
-        return 
+        res={'sample_id': index, 'dtw_distance_geodesic':dtw_distance_geodesic, 'dtw_distance_transl': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
+        return res
+    elif keypointtype=='6d_transformed':
+        assert generated_motion_np.shape[1]==22
+        generated_motion_np=change_motion_position(generated_motion_np)
+        reference_np=change_motion_position(reference_np)
+        gen=generated_motion_np.reshape(-1,66)
+        ref=reference_np.reshape(-1,66)
+        dtw_distance, path = fastdtw.fastdtw(ref, gen)
+        dtw_distance=dtw_distance/len(path)  # normalize by length of path
+        return dtw_distance
     else:
         raise ValueError("Unknown keypoint type for DTW calculation.")
 
@@ -299,13 +338,14 @@ def main():
         #print(f"Condition motion shape: {condition.shape}")
         ref_path=os.path.join(args.output_dir, "reference_motion_"+str(i)+".npy")
         gen_path=os.path.join(args.output_dir, "generated_motion_"+str(i)+".npy")
+        res={}
         # --- Run the generation ---
         if use_sliding_window:
             generated_motion, generated_motion_concat = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window, sliding_window_step=10)
             generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
             generated_motion_concat_np = generated_motion_concat.squeeze(0).cpu().numpy()
             reference_np=reference.squeeze(0).cpu().numpy()
-            calculate_dtw(reference_np, generated_motion_concat_np, args.keypointtype, i, dtw_metrics)
+            res=calculate_metrics(reference_np, generated_motion_concat_np, args.keypointtype, i)
             generated_motion_np, reference_np = transform_motion_back(args, betas, generated_motion_np, reference_np)
             generated_motion_concat_np, _ = transform_motion_back(args, betas, generated_motion_concat_np, None)
 
@@ -316,8 +356,13 @@ def main():
 
             generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
             reference_np=reference.squeeze(0).cpu().numpy()
-            calculate_dtw(reference_np, generated_motion_np, args.keypointtype, i, dtw_metrics)
+            res=calculate_metrics(reference_np, generated_motion_np, args.keypointtype, i)
             generated_motion_np, reference_np = transform_motion_back(args, betas, generated_motion_np, reference_np)
+        
+        if args.keypointtype=='6d':
+            #calculate dtw only on for 6d after transformation
+            res['dtw_distance']=calculate_metrics(reference_np, generated_motion_np, '6d_transformed', i) # normalize to be comparable with openpose
+        dtw_metrics.append(res)
 
         np.save(ref_path, reference_np)
         np.save(gen_path, generated_motion_np)

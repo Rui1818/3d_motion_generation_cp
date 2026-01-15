@@ -265,7 +265,7 @@ class GaitDiffusionModel(GaussianDiffusion):
                     if target_np.shape[2]==135:
                         #calculate geodesic distance only on rotation part
                         target_np_rot = target_np[i, :sl, 3:]
-                        pred_np_rot = pred_np[i, :sl, 3:]
+                        pred_np_rot = pred_np[i, :, 3:]
                         d_geodesic, path = fastdtw.fastdtw(pred_np_rot, target_np_rot, dist=dist_geodesic)
                         dtw_losses_geodesic.append(d_geodesic/len(path))  # normalize by path length
                     

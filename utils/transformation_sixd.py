@@ -144,18 +144,7 @@ def sixd_to_smplx(data):
     all_joints = np.array(all_joints)  # Shape: (num_frames, num_joints, 3)
     all_joints=all_joints[:,:22,:]
     # Extract the 3D joint positions for the 22 SMPL joints
-    keypoints_3d = all_joints
-    return keypoints_3d
-
-
-    """# 5. Save the reconstructed keypoints
-    output_path = os.path.join(output_path, "reconstructed_keypoints_3d_ref.npy")
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    np.save(output_path, keypoints_3d)
-
-    print(f"\nSuccessfully reconstructed 3D keypoints.")
-    print(f"Output shape: {keypoints_3d.shape}")
-    print(f"Saved result to: {output_path}")"""
+    return all_joints
 
 def create_smpl_keypoints(path):
     data = np.load(path)
