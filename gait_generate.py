@@ -152,7 +152,7 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
 
     # Initialize output tensor to store all generated frames
     all_generated_frames = []
-    generated_frames_concat=[]
+    generated_motion_concat_tensor = None
 
     # Calculate start indices for windows
     start_indices = list(range(0, total_frames - window_size + 1, sliding_window_step))
@@ -197,7 +197,7 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
         # For the first window, take all frames
         if window_idx == 0:
             all_generated_frames.append(generated_window)
-            generated_frames_concat.append(generated_window)
+            generated_motion_concat_tensor = generated_window
             last_concat_end_idx = window_size
         # For subsequent windows, only take the new frames (after the overlap)
         else:
@@ -205,26 +205,26 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
             # Take only the frames that extend beyond previous windows
             frames_to_take = start_idx + window_size - last_concat_end_idx
 
-            frame_offset = generated_frames_concat[-1][:, -1:, :]
+            frame_offset = generated_motion_concat_tensor[:, -1:, :]
             overlaplen=window_size - frames_to_take  
             # append full window
             all_generated_frames.append(generated_window)
 
             # overlap motion blending
-            previously_generated_overlap = generated_frames_concat[-1][:, -overlaplen:, :].clone()
+            previously_generated_overlap = generated_motion_concat_tensor[:, -overlaplen:, :].clone()
             generated_window_overlap = generated_window[:, :overlaplen, :].clone()
             generated_window_blended = linear_blend_motion(previously_generated_overlap, generated_window_overlap)
-            generated_frames_concat[-1][:, -overlaplen:, :] = generated_window_blended
+            generated_motion_concat_tensor[:, -overlaplen:, :] = generated_window_blended
             generated_window_slice = generated_window[:, -frames_to_take:, :].clone()
             generated_window_concat=change_motion_position(generated_window_slice, offset=frame_offset)
-            generated_frames_concat.append(generated_window_concat)
+            generated_motion_concat_tensor = torch.cat([generated_motion_concat_tensor, generated_window_concat], dim=1)
             
             last_concat_end_idx += frames_to_take
 
     # Concatenate all generated frames
     generated_motion = torch.cat(all_generated_frames, dim=1)
 
-    generated_motion_concat = torch.cat(generated_frames_concat, dim=1)
+    generated_motion_concat = generated_motion_concat_tensor
     """
     # Trim to match the original total_frames if needed
     if generated_motion.shape[1] > total_frames:
