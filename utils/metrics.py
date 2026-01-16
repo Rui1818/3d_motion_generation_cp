@@ -6,7 +6,6 @@ import torch
 
 import numpy as np
 from scipy.spatial.distance import euclidean
-from fastdtw import fastdtw
 
 def geodesic_distance_matrix(R1, R2):
     """
@@ -61,29 +60,6 @@ def pose_distance_metric(frame_A, frame_B):
     
     # 4. Return average error across all joints for this frame
     return np.mean(joint_errors)
-
-def calculate_motion_dtw(motion1, motion2, distance_metric=euclidean):
-    """
-    Calculates DTW distance between two human motion sequences.
-    
-    Args:
-        motion1 (np.ndarray): Shape (frames_A, joints, 3)
-        motion2 (np.ndarray): Shape (frames_B, joints, 3)
-        
-    Returns:
-        float: The DTW distance.
-        list: The warping path (list of tuples aligning frame i to frame j).
-    """
-    
-    # 1. Input Validation
-    if motion1.shape[1:] != motion2.shape[1:]:
-        raise ValueError("Both motions must have the same number of joints and dimensions.")
-    
-    seq_a = motion1.reshape(motion1.shape[0], -1)
-    seq_b = motion2.reshape(motion2.shape[0], -1)
-    distance, path = fastdtw(seq_a, seq_b, dist=distance_metric)
-    
-    return distance, path
 
 
 def calculate_jitter(motion, fps=30):

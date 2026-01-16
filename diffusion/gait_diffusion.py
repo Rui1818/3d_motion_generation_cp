@@ -11,7 +11,7 @@ Docstrings have been added, as well as DDIM sampling and a new collection of bet
 
 import torch
 import torch as th
-import fastdtw
+from tslearn.metrics import dtw_path_from_metric
 import numpy as np
 from utils.metrics import pose_distance_metric
 
@@ -254,19 +254,17 @@ class GaitDiffusionModel(GaussianDiffusion):
                 dtw_losses_geodesic = []
                 pred_np = pred_xstart.detach().cpu().numpy()
                 target_np = x_start.detach().cpu().numpy()
-                dist_fn = lambda x, y: np.linalg.norm(x - y)
-                dist_geodesic = pose_distance_metric
 
                 for i in range(len(pred_np)):
                     sl = int(seq_len[i].item()) if seq_len is not None else pred_np.shape[1]
-                    d, path = fastdtw.fastdtw(pred_np[i, :], target_np[i, :sl], dist=dist_fn)
+                    path, d=dtw_path_from_metric(pred_np[i, :], target_np[i, :sl])
                     dtw_losses.append(d/len(path))  # normalize by path length
 
                     if target_np.shape[2]==135:
                         #calculate geodesic distance only on rotation part
                         target_np_rot = target_np[i, :sl, 3:]
                         pred_np_rot = pred_np[i, :, 3:]
-                        d_geodesic, path = fastdtw.fastdtw(pred_np_rot, target_np_rot, dist=dist_geodesic)
+                        path, d_geodesic = dtw_path_from_metric(pred_np_rot, target_np_rot, metric=pose_distance_metric)
                         dtw_losses_geodesic.append(d_geodesic/len(path))  # normalize by path length
                     
                 

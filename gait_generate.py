@@ -1,6 +1,6 @@
 import os
 import random
-import fastdtw
+from tslearn.metrics import dtw_path_from_metric
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -252,7 +252,7 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         assert generated_motion_np.shape[1]==69
         generated_motion_np=change_motion_position(generated_motion_np)
         reference_np=change_motion_position(reference_np)
-        dtw_distance, path = fastdtw.fastdtw(reference_np, generated_motion_np)
+        path, dtw_distance=dtw_path_from_metric(reference_np, generated_motion_np)
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
         #calculate jitter
         generated_motion_jitter=generated_motion_np.reshape(-1,23,3)
@@ -263,9 +263,9 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         assert generated_motion_np.shape[1]==135
         ref_sixd=reference_np[:,3:]
         gen_sixd=generated_motion_np[:,3:]
-        dtw_distance, path = fastdtw.fastdtw(reference_np[:, :3], generated_motion_np[:, :3]) # translation part
+        path, dtw_distance=dtw_path_from_metric(reference_np[:, :3], generated_motion_np[:, :3]) # translation part
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
-        dtw_distance_geodesic, path = fastdtw.fastdtw(ref_sixd, gen_sixd, dist=pose_distance_metric)
+        path, dtw_distance_geodesic=dtw_path_from_metric(ref_sixd, gen_sixd, metric=pose_distance_metric)
         dtw_distance_geodesic=dtw_distance_geodesic/len(path)  # normalize by length of path
         res={'sample_id': index, 'dtw_distance_geodesic':dtw_distance_geodesic, 'dtw_distance_transl': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
         return res
@@ -275,7 +275,7 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         reference_np=change_motion_position(reference_np)
         gen=generated_motion_np.reshape(-1,66)
         ref=reference_np.reshape(-1,66)
-        dtw_distance, path = fastdtw.fastdtw(ref, gen)
+        path, dtw_distance=dtw_path_from_metric(ref, gen)
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
         jitter=calculate_jitter(generated_motion_np)
         return dtw_distance, jitter
