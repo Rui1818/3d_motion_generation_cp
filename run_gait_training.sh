@@ -143,7 +143,7 @@ run_training "my_training/config_sdtw4_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5
 
 
 #short motion windows
-#with the adjusted sampling
+#with the adjusted sampling (aligned)
 #anneal factor 20
 #run_training "my_training/config_window1_v2" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 0 30 mse
 #run_training "my_training/config_window2_v2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 0 30 mse

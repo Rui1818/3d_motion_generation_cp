@@ -70,8 +70,9 @@ def change_motion_position(motion, offset=None, overlapframe=0):
         root=motion[0,0,:]
         motion=motion - root
         return motion
-
-    motion=motion.squeeze(0)  # (frames, dim)
+    s=len(motion.shape)
+    if s==3:
+        motion=motion.squeeze(0)  # (frames, dim)
     
     offset_val = None
     if offset is not None:
@@ -88,7 +89,8 @@ def change_motion_position(motion, offset=None, overlapframe=0):
         motion[:, :3] = motion[:, :3] - root
     else:
         raise ValueError("Unknown motion dimension for normalization.")
-    motion=motion.unsqueeze(0)
+    if s==3:
+        motion=motion.unsqueeze(0)
     return motion
 
 def linear_blend_motion(motion1, motion2):

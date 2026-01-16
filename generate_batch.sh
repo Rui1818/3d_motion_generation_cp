@@ -10,8 +10,8 @@
 #CONFIGS=("config8_new" "config9_new" "config12_new" "config14_new" "config15_new" "config16_new" "config28_new" "config29_new" "config30_new")
 #CONFIGS=("config_sdtw3")
 
-#CONFIGS=("config_window1" "config_window2" "config_window3" "config_window7" "config_window8" "config_window9")
-#CONFIGS=("config_window4" "config_window5" "config_window6" "config_window10" "config_window11" "config_window12")
+CONFIGS=("config_window1_v2" "config_window2_v2" "config_window3_v2" "config_window7_v2" "config_window8_v2" "config_window9_v2")
+#CONFIGS=("config_window4_v2" "config_window5_v2" "config_window6_v2" "config_window10_v2" "config_window11_v2" "config_window12_v2")
 
 
 
@@ -21,11 +21,12 @@
 #MODELS=("model000019513" "model000026013" "model000032513" "model000065013")
 #MODELS=("model000054281" "model000077531" "model000116281" "model000160022")
 #MODELS=("model000111631" "model000160022")
-
+MODELS=("model000032427" "model000070227" "model000118827" "model000160002")
+#MODELS=("model000043227" "model000070227" "model000118827" "model000160002")
 # 3. Common settings
-INPUT_LENGTH=60
+INPUT_LENGTH=30
 BASE_TRAINING_DIR="my_training"
-BASE_RESULTS_DIR="results/window60_aligned"
+BASE_RESULTS_DIR="results/window30_aligned"
 
 # =================================================
 
@@ -55,7 +56,7 @@ for config in "${CONFIGS[@]}"; do
             --model_path "$FULL_MODEL_PATH" \
             --input_motion_length "$INPUT_LENGTH" \
             --output_dir "$OUTPUT_PATH" \
-            --device "cuda:1"
+            --device "1"
             
     done
 done
