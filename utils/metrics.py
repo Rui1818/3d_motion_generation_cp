@@ -86,6 +86,43 @@ def calculate_motion_dtw(motion1, motion2, distance_metric=euclidean):
     return distance, path
 
 
+def calculate_jitter(motion, fps=30):
+    """
+    Calculates the jitter (jerk) of a motion sequence.
+
+    Args:
+        motion (torch.Tensor or np.ndarray): Shape (frames, joints, 3)
+        fps (float): Frames per second. Default is 30.
+
+    Returns:
+        float: The average jitter across all joints and frames.
+    """
+    if isinstance(motion, np.ndarray):
+        motion = torch.from_numpy(motion)
+
+    # Ensure motion is float
+    motion = motion.float()
+
+    # Calculate third derivative (jerk) using finite differences
+    # p(t+3) - 3p(t+2) + 3p(t+1) - p(t)
+    jerk = (
+        motion[3:]
+        - 3 * motion[2:-1]
+        + 3 * motion[1:-2]
+        - motion[:-3]
+    )
+
+    # Scale by FPS cubed
+    jerk = jerk * (fps**3)
+
+    # Calculate magnitude of jerk vectors (L2 norm along the coordinate dimension)
+    # Shape: (frames-3, joints)
+    jerk_norm = torch.norm(jerk, dim=2)
+
+    # Return mean jitter across all valid frames and joints
+    return jerk_norm.mean().item()
+
+
 def pred_jitter(
     predicted_position,
     predicted_angle,

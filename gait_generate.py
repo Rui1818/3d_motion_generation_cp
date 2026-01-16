@@ -10,7 +10,7 @@ from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 from data_loaders.dataloader3d import TestDataset, load_data, MotionDataset, get_dataloader
 from utils.transformation_sixd import sixd_to_smplx, smplx_to_6d
 from scipy.ndimage import gaussian_filter1d
-from utils.metrics import calculate_motion_dtw, pose_distance_metric
+from utils.metrics import pose_distance_metric, calculate_jitter
 
 def remove_padding_3d_numpy(sequence):
     # sequence shape: (frames, x, y)
@@ -252,7 +252,10 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         reference_np=change_motion_position(reference_np)
         dtw_distance, path = fastdtw.fastdtw(reference_np, generated_motion_np)
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
-        res={'sample_id': index, 'dtw_distance': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
+        #calculate jitter
+        generated_motion_jitter=generated_motion_np.reshape(-1,23,3)
+        jitter=calculate_jitter(generated_motion_jitter)
+        res={'sample_id': index, 'dtw_distance': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0], 'jitter': jitter}
         return res
     elif keypointtype=='6d':
         assert generated_motion_np.shape[1]==135
@@ -272,7 +275,8 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         ref=reference_np.reshape(-1,66)
         dtw_distance, path = fastdtw.fastdtw(ref, gen)
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
-        return dtw_distance
+        jitter=calculate_jitter(generated_motion_np)
+        return dtw_distance, jitter
     else:
         raise ValueError("Unknown keypoint type for DTW calculation.")
 
@@ -359,7 +363,7 @@ def main():
         
         if args.keypointtype=='6d':
             #calculate dtw only on for 6d after transformation
-            res['dtw_distance']=calculate_metrics(reference_np, generated_motion_np, '6d_transformed', i) # normalize to be comparable with openpose
+            res['dtw_distance'], res['jitter'] = calculate_metrics(reference_np, generated_motion_np, '6d_transformed', i) # normalize to be comparable with openpose
         dtw_metrics.append(res)
 
         np.save(ref_path, reference_np)
