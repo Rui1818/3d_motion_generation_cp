@@ -131,10 +131,10 @@ if __name__ == "__main__":
         "configsoftdtw",
 
     ]
-    root="results/window60_new"
+    root="results/window30_aligned"
     v=Viewer()
     reference=None
-    i=5
+    i=4
     #conf="config16"
     for config in os.listdir(root):
         """
@@ -154,7 +154,7 @@ if __name__ == "__main__":
                 condition=subtract_root(condition)
                 add_keypoints(condition, v, "Condition Motion", color=(0.0, 1.0, 0.0, 1))
                 add_keypoints(reference, v, "Reference Motion", color=(0.0, 0.0, 1.0, 1))
-            condition_path=os.path.join(model_path, "generated_motion_concat_"+str(i)+".npy")
+            condition_path=os.path.join(model_path, "generated_motion_"+str(i)+".npy")
             gen=np.load(condition_path)
             gen=subtract_root(gen)
             # Create a viewer instance

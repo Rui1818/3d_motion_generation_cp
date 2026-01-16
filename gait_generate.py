@@ -63,7 +63,7 @@ def prepare_conditional_motion(file_path, input_motion_length, keypointtype):
     #return motion_w_o.unsqueeze(0)  # Add batch dimension
     return get_dataloader(dataset, "test", batch_size=1, num_workers=1)
 
-def change_motion_position(motion, offset=None):
+def change_motion_position(motion, offset=None, overlapframe=0):
     #motion: tensor (1, frames, dim)
     #only batch size 1 supported
     if motion.shape[1]==22:
@@ -78,17 +78,13 @@ def change_motion_position(motion, offset=None):
         offset_val = offset.reshape(-1, motion.shape[1])[0]
 
     if motion.shape[1]==69:
-        # 1. Calculate the root (average of joint 7 and joint 10) 
-        # Joint 7 is indices 21:24, Joint 10 is indices 30:33
-        root=(motion[0, 21:24] + motion[0, 30:33]) / 2
+        root=(motion[overlapframe, 21:24] + motion[overlapframe, 30:33]) / 2
         root = root if offset is None else root-((offset_val[21:24] + offset_val[30:33]) / 2)
-        # 2. Subtract the root from the motion data
-        # We subtract root[0] from all X's, root[1] from all Y's, and root[2] from all Z's
         motion[:, 0::3] -= root[0]  # All X coordinates
         motion[:, 1::3] -= root[1]  # All Y coordinates
         motion[:, 2::3] -= root[2]  # All Z coordinates
     elif motion.shape[1]==135:
-        root = motion[0, :3] if offset is None else motion[0, :3]-offset_val[:3]
+        root = motion[overlapframe, :3] if offset is None else motion[overlapframe, :3]-offset_val[:3]
         motion[:, :3] = motion[:, :3] - root
     else:
         raise ValueError("Unknown motion dimension for normalization.")
@@ -213,6 +209,8 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
             # overlap motion blending
             previously_generated_overlap = generated_motion_concat_tensor[:, -overlaplen:, :].clone()
             generated_window_overlap = generated_window[:, :overlaplen, :].clone()
+            generated_window_overlap = change_motion_position(generated_window_overlap, offset=frame_offset, overlapframe=overlaplen-1)
+            #TODO adjust blending position
             generated_window_blended = linear_blend_motion(previously_generated_overlap, generated_window_overlap)
             generated_motion_concat_tensor[:, -overlaplen:, :] = generated_window_blended
             generated_window_slice = generated_window[:, -frames_to_take:, :].clone()
@@ -341,7 +339,7 @@ def main():
         res={}
         # --- Run the generation ---
         if use_sliding_window:
-            generated_motion, generated_motion_concat = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window, sliding_window_step=10)
+            generated_motion, generated_motion_concat = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window)
             generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
             generated_motion_concat_np = generated_motion_concat.squeeze(0).cpu().numpy()
             reference_np=reference.squeeze(0).cpu().numpy()
@@ -352,7 +350,7 @@ def main():
             gen_concat_path=os.path.join(args.output_dir, "generated_motion_concat_"+str(i)+".npy")
             np.save(gen_concat_path, generated_motion_concat_np)
         else:
-            generated_motion = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window, sliding_window_step=10)
+            generated_motion = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window)
 
             generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
             reference_np=reference.squeeze(0).cpu().numpy()
