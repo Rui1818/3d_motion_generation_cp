@@ -12,21 +12,6 @@ from utils.transformation_sixd import sixd_to_smplx, smplx_to_6d
 from scipy.ndimage import gaussian_filter1d
 from utils.metrics import pose_distance_metric, calculate_jitter
 
-def remove_padding_3d_numpy(sequence):
-    # sequence shape: (frames, x, y)
-
-    diffs = sequence[1:] - sequence[:-1]
-
-    non_zero_diff = np.any(diffs != 0, axis=(1, 2))
-    change_indices = np.where(non_zero_diff)[0]
-    
-    if len(change_indices) == 0:
-        return sequence[:1]
-    
-    last_real_index = change_indices[-1] + 2
-    
-    return sequence[:last_real_index]
-
 def load_diffusion_model(args):
     """
     Loads the diffusion model and its configuration from a checkpoint.
@@ -247,6 +232,21 @@ def transform_motion_back(args, betas, generated_motion_np, reference_np):
             reference_np=reference_np.reshape(-1,23,3)
     return generated_motion_np, reference_np
 
+def root_normalize_and_trajectory(data):
+    assert len(data.shape)==3  # (frames, joints, 3)
+    trajectory=data[:,0,:].copy()  # root joint trajectory
+    if data.shape[1]==23:
+        root = (data[:,7]+data[:, 10])/2
+        data=(data - root[:,np.newaxis, :])
+        trajectory=root
+        trajectory=root - root[0:1]  
+        return data, trajectory
+    else:
+        raise ValueError(f"Unknown keypoint type")
+
+    
+
+
 def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
     if keypointtype=='openpose':
         assert generated_motion_np.shape[1]==69
@@ -254,10 +254,20 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         reference_np=change_motion_position(reference_np)
         path, dtw_distance=dtw_path_from_metric(reference_np, generated_motion_np)
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
+        #calulate root normalizad distance and trajectory distance dtw
+        generated_motion_reshape=generated_motion_np.reshape(-1,23,3)
+        reference_np_reshape=reference_np.reshape(-1,23,3)
+        reference_np, reference_trajectory = root_normalize_and_trajectory(reference_np_reshape)
+        generated_motion_np, generated_trajectory = root_normalize_and_trajectory(generated_motion_reshape)
+        #calculate root normalized dtw
+        path, dtw_distance_root_normalized=dtw_path_from_metric(reference_np, generated_motion_np)
+        dtw_distance_root_normalized=dtw_distance_root_normalized/len(path)  # normalize by length of path
+        path, dtw_distance_trajectory=dtw_path_from_metric(reference_trajectory, generated_trajectory)
+        dtw_distance_trajectory=dtw_distance_trajectory/len(path)  # normalize by length of path
+
         #calculate jitter
-        generated_motion_jitter=generated_motion_np.reshape(-1,23,3)
-        jitter=calculate_jitter(generated_motion_jitter)
-        res={'sample_id': index, 'dtw_distance': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0], 'jitter': jitter}
+        jitter=calculate_jitter(generated_motion_reshape)
+        res={'sample_id': index, 'dtw_distance': dtw_distance, 'dtw_distance_root_normalized': dtw_distance_root_normalized, 'dtw_distance_trajectory': dtw_distance_trajectory, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0], 'jitter': jitter}
         return res
     elif keypointtype=='6d':
         assert generated_motion_np.shape[1]==135
