@@ -195,14 +195,17 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
 
             # overlap motion blending
             previously_generated_overlap = generated_motion_concat_tensor[:, -overlaplen:, :].clone()
-            generated_window_overlap = generated_window[:, :overlaplen, :].clone()
-            generated_window_overlap = change_motion_position(generated_window_overlap, offset=frame_offset, overlapframe=overlaplen-1)
+            
+            # Align the entire window to the previous segment based on the overlap frame
+            generated_window_aligned = generated_window.clone()
+            generated_window_aligned = change_motion_position(generated_window_aligned, offset=frame_offset, overlapframe=overlaplen-1)
+            
+            generated_window_overlap = generated_window_aligned[:, :overlaplen, :]
             #TODO adjust blending position
             generated_window_blended = linear_blend_motion(previously_generated_overlap, generated_window_overlap)
             generated_motion_concat_tensor[:, -overlaplen:, :] = generated_window_blended
-            generated_window_slice = generated_window[:, -frames_to_take:, :].clone()
-            generated_window_concat=change_motion_position(generated_window_slice, offset=frame_offset)
-            generated_motion_concat_tensor = torch.cat([generated_motion_concat_tensor, generated_window_concat], dim=1)
+            generated_window_slice = generated_window_aligned[:, -frames_to_take:, :]
+            generated_motion_concat_tensor = torch.cat([generated_motion_concat_tensor, generated_window_slice], dim=1)
             
             last_concat_end_idx += frames_to_take
 
@@ -248,6 +251,21 @@ def root_normalize_and_trajectory(data):
 
 
 def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
+    """
+    Calculates DTW and jitter metrics between reference and generated motions.
+    Metrics: 
+        dtw_distance: DTW distance between reference and generated motions (keypoint-based)
+        dtw_distance_root_normalized: DTW distance after root normalization for openpose
+        dtw_distance_trajectory: DTW distance of the root trajectory
+        jitter: Jitter metric of the generated motion
+        dtw_distance_geodesic: DTW distance in geodesic space for 6D representation
+        dtw_distance_transl: DTW distance for translation part in 6D representation
+    
+    :param reference_np: Description
+    :param generated_motion_np: Description
+    :param keypointtype: Description
+    :param index: Description
+    """
     if keypointtype=='openpose':
         assert generated_motion_np.shape[1]==69
         generated_motion_np=change_motion_position(generated_motion_np)

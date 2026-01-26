@@ -256,6 +256,7 @@ class GaitDiffusionModel(GaussianDiffusion):
                 target_np = x_start.detach().cpu().numpy()
 
                 for i in range(len(pred_np)):
+                    #TODO: seperate dtw for pose and translation
                     sl = int(seq_len[i].item()) if seq_len is not None else pred_np.shape[1]
                     path, d=dtw_path_from_metric(pred_np[i, :], target_np[i, :sl])
                     dtw_losses.append(d/len(path))  # normalize by path length
@@ -270,6 +271,7 @@ class GaitDiffusionModel(GaussianDiffusion):
                 
                 terms["dtw_loss"] = torch.tensor(np.mean(dtw_losses), device=x_start.device)
                 if target_np.shape[2]==135:
+                    #TODO: log pose and translation dtw separately
                     terms["dtw_loss_geodesic"] = torch.tensor(np.mean(dtw_losses_geodesic), device=x_start.device)
 
         else:

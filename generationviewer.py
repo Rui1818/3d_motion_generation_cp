@@ -7,6 +7,7 @@ from aitviewer.viewer import Viewer
 from aitviewer.renderables.point_clouds import PointClouds
 from plyfile import PlyData
 from aitviewer.renderables.skeletons import Skeletons
+from scipy.ndimage import gaussian_filter1d
 
 
 
@@ -128,18 +129,36 @@ if __name__ == "__main__":
     C.playback_fps = 30
     
     configlist=[
-        "configsoftdtw",
+        "config15_new",#6d
+        "config_window11_v2", #60 6d
+        "config_window8_v2", #30 6d
+        #"config_sdtw3_v2",#6d sdtw
+        #"config_window14_v2", #sdtw 60 6d
+        #"config_window16_v2",#30 6d sdtw
+        #"config25_new",#keypoints
+        #"config_window4_v2", #60 keypoints
+        #"config_window1_v2", #30 keypoints
+        #"config_sdtw2_v2",#keypoints
+        #"config_window13_v2", #sdtw 60 keypoints
+        #"config_window15_v2",#30 keypoints sdtw
+        #"config_window7_v2", #30 6d
 
     ]
-    root="results/test"
+    root="results/windows/window30_aligned"
+    #root="results/windows/window60_aligned_slidingstep40"
+    #root="results/full_sequences_baseline/sixd_baseline_with_metrics"
+    #root="results/full_sequences_baseline/keypoints_baseline_with_metrics"
+    #root="results/windows/window30_random_sampling"
+    root="results/presentation"
     v=Viewer()
     reference=None
     i=4
     #conf="config16"
     for config in os.listdir(root):
-        """
+        
         if config not in configlist:
-            continue"""
+            print("Skipping ", config)
+            continue
         config_path=os.path.join(root, config)
         for model in os.listdir(config_path):
             #if model in modellist:
@@ -154,8 +173,15 @@ if __name__ == "__main__":
                 condition=subtract_root(condition)
                 add_keypoints(condition, v, "Condition Motion", color=(0.0, 1.0, 0.0, 1))
                 add_keypoints(reference, v, "Reference Motion", color=(0.0, 0.0, 1.0, 1))
+            condition_path=os.path.join(model_path, "generated_motion_"+str(i)+".npy")
             condition_path=os.path.join(model_path, "generated_motion_concat_"+str(i)+".npy")
-            gen=np.load(condition_path)
+            try:
+                gen=np.load(condition_path)
+            except:
+                condition_path=os.path.join(model_path, "generated_motion_"+str(i)+".npy")
+                gen=np.load(condition_path)
+            if "sdtw" in config or "window15" in config or "window16" in config:
+                gen=gaussian_filter1d(gen, sigma=1, axis=0)
             gen=subtract_root(gen)
             # Create a viewer instance
             add_keypoints(gen, v, "Generated Motion_"+config+model[-5:], color=(0.5, 0.0, 0.0, 1))
