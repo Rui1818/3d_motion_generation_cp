@@ -131,7 +131,7 @@ class MotionDataset(Dataset):
         
         if self.input_motion_length in [30, 60]:
             if mode=="train":
-                match_dict_path="prepare_data/match_dict_window30.npy" if self.input_motion_length==30 else "prepare_data/match_dict_window60.npy"
+                match_dict_path="prepare_data/match_dict_window30_v2.npy" if self.input_motion_length==30 else "prepare_data/match_dict_window60_v2.npy"
             else:
                 match_dict_path="prepare_data/match_dict_window30_test.npy" if self.input_motion_length==30 else "prepare_data/match_dict_window60_test.npy"
             self.matching_dict=np.load(match_dict_path, allow_pickle=True).item()
