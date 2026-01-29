@@ -61,9 +61,9 @@ def add_keypoints(path, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
     #if keypoints.shape[1]==24:
     #    keypoints=np.insert(keypoints, 1,0, axis=1)
 
-    skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
-    viewer.scene.add(skeleton)
-    #viewer.scene.add(keypoints_pc)
+    #skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
+    #viewer.scene.add(skeleton)
+    viewer.scene.add(keypoints_pc)
     return
 
 
@@ -237,24 +237,26 @@ def visualize_smpl_keypoints(smplkeypoints_path):
 
 def visualiza_gait_batch(root):
     v=Viewer()
-    """
+    
     ply_data = PlyData.read("floor_c1_a3.ply")
     vertices = ply_data['vertex']
     floor_points = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
     
     # Create point cloud (add a frame dimension if needed)
     floor_pc = PointClouds(floor_points[np.newaxis, :, :], name="MyFloor", point_size=2.0)
-    v.scene.add(floor_pc)"""
+    v.scene.add(floor_pc)
     for take in os.listdir(root):
         cond=take.split("_")
-        
+        """
         if cond[2]!="a3":
-            continue
+            continue"""
         if cond[1]=="c1":
             c2 = cond[0]+'_c2_'+"_".join(cond[2:])
             keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
+            keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d.npy"
             #keypointspart="split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy"
             smplseqpart="split_subjects/0/fit-smplx/smplx-params_cut.npz"
+            smplseqpart="split_subjects/0/fit-smplx/smplx-params.npz"
             #print(take)
             #print(c2)
             keypoints_path = os.path.join(root, take, keypointspart)
@@ -287,7 +289,6 @@ if __name__ == "__main__":
     smplseq2= os.path.join(root, ref_take, smplpart)
     #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
-    #visualiza_gait_batch(root+"/gait_753")
+    visualiza_gait_batch(root+"/gait_983")
     #visualize_gait('mydataset/gait_682/20250919_c1_a3_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy', 'mydataset/gait_682/20250919_c2_a3_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy')
-    visualize_gait('mydataset/gait_753/20250617_c1_a1_Take2/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy')
 

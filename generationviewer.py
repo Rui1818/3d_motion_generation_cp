@@ -132,16 +132,16 @@ if __name__ == "__main__":
         "config15_new",#6d
         "config_window11_v2", #60 6d
         "config_window8_v2", #30 6d
-        #"config_sdtw3_v2",#6d sdtw
-        #"config_window14_v2", #sdtw 60 6d
-        #"config_window16_v2",#30 6d sdtw
-        #"config25_new",#keypoints
-        #"config_window4_v2", #60 keypoints
-        #"config_window1_v2", #30 keypoints
-        #"config_sdtw2_v2",#keypoints
-        #"config_window13_v2", #sdtw 60 keypoints
-        #"config_window15_v2",#30 keypoints sdtw
-        #"config_window7_v2", #30 6d
+        "config_sdtw3_v2",#6d sdtw
+        "config_window14_v2", #sdtw 60 6d
+        "config_window16_v2",#30 6d sdtw
+        "config25_new",#keypoints
+        "config_window4_v2", #60 keypoints
+        "config_window1_v2", #30 keypoints
+        "config_sdtw2_v2",#keypoints sdtw
+        "config_window13_v2", #sdtw 60 keypoints
+        "config_window15_v2",#30 keypoints sdtw
+        "config_window7_v2", #30 6d
 
     ]
     root="results/windows/window30_aligned"
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     root="results/presentation"
     v=Viewer()
     reference=None
-    i=4
+    i=8
     #conf="config16"
     for config in os.listdir(root):
         
