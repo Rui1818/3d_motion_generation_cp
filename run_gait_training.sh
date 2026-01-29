@@ -102,10 +102,10 @@ run_training() {
 #run_training "my_training/config29_v2" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 18000 240
 
 #softdtw training
-run_training "my_training/config_sdtw1_v2" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 20000 240 softdtw
-run_training "my_training/config_sdtw2_v2" 512 12 1e-4 160000 2e-4 openpose 0 0 0 69 20000 240 softdtw
-run_training "my_training/config_sdtw3_v2" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 20000 240 softdtw
-run_training "my_training/config_sdtw4_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 20000 240 softdtw
+#run_training "my_training/config_sdtw1_v2" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 20000 240 softdtw
+#run_training "my_training/config_sdtw2_v2" 512 12 1e-4 160000 2e-4 openpose 0 0 0 69 20000 240 softdtw
+#run_training "my_training/config_sdtw3_v2" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 20000 240 softdtw
+#run_training "my_training/config_sdtw4_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 20000 240 softdtw
 
 #
 #local save_dir=$1
@@ -161,6 +161,8 @@ run_training "my_training/config_sdtw4_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5
 #softdtw with short windows
 #run_training "my_training/config_window13_v2" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 60 softdtw
 #run_training "my_training/config_window14_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60 softdtw
+#run_training "my_training/config_window15_v2" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 30 softdtw
+#run_training "my_training/config_window16_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 30 softdtw
 
 # Config 4: Add more configs as you like...
 # run_training "my_training/config4_..." ... ... ...

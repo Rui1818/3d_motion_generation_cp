@@ -90,7 +90,7 @@ def linear_blend_motion(motion1, motion2):
     return blended
 
 
-def sample(model, diffusion, cond_motion, args, use_sliding_window=False, sliding_window_step=20):
+def sample(model, diffusion, cond_motion, args, use_sliding_window=False, sliding_window_step=30):
     """
     Generates motion samples using the diffusion model conditioned on the provided motion.
 
@@ -184,7 +184,6 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
             last_concat_end_idx = window_size
         # For subsequent windows, only take the new frames (after the overlap)
         else:
-            #TODO apply smoothing between windows
             # Take only the frames that extend beyond previous windows
             frames_to_take = start_idx + window_size - last_concat_end_idx
 
@@ -243,7 +242,7 @@ def root_normalize_and_trajectory(data):
         data=(data - root[:,np.newaxis, :])
         trajectory=root
         trajectory=root - root[0:1]  
-        return data, trajectory
+        return data.reshape(data.shape[0], -1), trajectory.reshape(data.shape[0], -1)
     else:
         raise ValueError(f"Unknown keypoint type")
 
