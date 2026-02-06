@@ -139,10 +139,13 @@ class DiffTransformer(nn.Module):
     def forward(self, motion_input, embed):
         """
         motion_input: [batch_size, seq, latent_dim * 2] - concatenated sparse + input
-        embed: [1, batch_size, latent_dim] - timestep embedding from sinusoidal encoding
+        embed: [batch_size, 1, latent_dim] - timestep embedding from sinusoidal encoding
         """
         # Project concatenated input to latent_dim
         x = self.input_proj(motion_input)  # [bs, seq, latent_dim]
+
+        # Reshape embed from [bs, 1, d] to [1, bs, d] for transformer
+        embed = embed.permute(1, 0, 2)  # [1, bs, latent_dim]
 
         # Process timestep embedding through MLP
         time_emb = self.time_embed(embed)  # [1, bs, latent_dim]
