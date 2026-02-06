@@ -110,6 +110,13 @@ def add_diffusion_options(parser):
 def add_model_options(parser):
     group = parser.add_argument_group("model")
     group.add_argument(
+        "--model_type",
+        default="meta_model",
+        choices=["meta_model", "mdm_motion_conditioned"],
+        type=str,
+        help="Model type to use: meta_model (DiffMLP) or mdm_motion_conditioned (transformer-based).",
+    )
+    group.add_argument(
         "--arch",
         default="DiffMLP",
         type=str,
@@ -151,6 +158,13 @@ def add_model_options(parser):
         default=0.0,
         type=float,
         help="Weight for translational velocity loss.",
+    )
+    # MDM_MotionConditioned specific options
+    group.add_argument(
+        "--num_heads", default=8, type=int, help="Number of attention heads."
+    )
+    group.add_argument(
+        "--ff_size", default=2048, type=int, help="Feed-forward layer size."
     )
 
 

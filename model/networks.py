@@ -1,4 +1,6 @@
 # Copyright (c) Meta Platforms, Inc. All Rights Reserved
+import numpy as np
+import torch
 import torch.nn as nn
 
 
@@ -85,6 +87,108 @@ class DiffMLP(nn.Module):
         motion_feats = self.motion_mlp([motion_input, embed])[0]
 
         return motion_feats
+
+
+class DiffTransformer(nn.Module):
+    """Transformer-based backbone for diffusion models (based on MDM architecture)."""
+
+    def __init__(
+        self,
+        latent_dim=512,
+        seq=98,
+        num_layers=8,
+        num_heads=8,
+        ff_size=1024,
+        dropout=0.1,
+        activation="gelu",
+    ):
+        super(DiffTransformer, self).__init__()
+
+        self.latent_dim = latent_dim
+        self.seq = seq
+        self.num_layers = num_layers
+
+        # Input projection: 2*latent_dim -> latent_dim (like MLPblock's first conct)
+        # This handles the concatenated input from MetaModel (sparse_emb + x)
+        self.input_proj = nn.Linear(latent_dim * 2, latent_dim)
+
+        # Positional encoding
+        self.sequence_pos_encoder = PositionalEncoding(
+            latent_dim, dropout, max_len=max(5000, seq + 1)
+        )
+
+        # Timestep embedding MLP (converts sinusoidal to learned)
+        self.time_embed = nn.Sequential(
+            nn.Linear(latent_dim, latent_dim),
+            nn.SiLU(),
+            nn.Linear(latent_dim, latent_dim),
+        )
+
+        # Transformer encoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=latent_dim,
+            nhead=num_heads,
+            dim_feedforward=ff_size,
+            dropout=dropout,
+            activation=activation,
+        )
+        self.transformer_encoder = nn.TransformerEncoder(
+            encoder_layer, num_layers=num_layers
+        )
+
+    def forward(self, motion_input, embed):
+        """
+        motion_input: [batch_size, seq, latent_dim * 2] - concatenated sparse + input
+        embed: [1, batch_size, latent_dim] - timestep embedding from sinusoidal encoding
+        """
+        # Project concatenated input to latent_dim
+        x = self.input_proj(motion_input)  # [bs, seq, latent_dim]
+
+        # Process timestep embedding through MLP
+        time_emb = self.time_embed(embed)  # [1, bs, latent_dim]
+
+        # Reshape motion for transformer: [seq, batch_size, latent_dim]
+        x = x.permute(1, 0, 2)
+
+        # Prepend timestep token to sequence: [seq+1, bs, latent_dim]
+        xseq = torch.cat((time_emb, x), dim=0)
+
+        # Add positional encoding
+        xseq = self.sequence_pos_encoder(xseq)
+
+        # Pass through transformer encoder
+        output = self.transformer_encoder(xseq)
+
+        # Remove timestep token: [seq, bs, latent_dim]
+        output = output[1:]
+
+        # Reshape back: [batch_size, seq, latent_dim]
+        output = output.permute(1, 0, 2)
+
+        return output
+
+
+class PositionalEncoding(nn.Module):
+    """Sinusoidal positional encoding (based on MDM)."""
+
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model)
+        )
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+
+        self.register_buffer("pe", pe)
+
+    def forward(self, x):
+        x = x + self.pe[: x.shape[0], :]
+        return self.dropout(x)
 
 
 class PureMLP(nn.Module):

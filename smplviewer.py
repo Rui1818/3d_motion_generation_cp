@@ -235,7 +235,7 @@ def visualize_smpl_keypoints(smplkeypoints_path):
     v.scene.add(smpl_joints_pc)
     v.run()
 
-def visualiza_gait_batch(root):
+def visualize_gait_batch(root):
     v=Viewer()
     
     ply_data = PlyData.read("floor_c1_a3.ply")
@@ -247,16 +247,14 @@ def visualiza_gait_batch(root):
     v.scene.add(floor_pc)
     for take in os.listdir(root):
         cond=take.split("_")
-        """
-        if cond[2]!="a3":
-            continue"""
+        
+        if cond[2]!="a5":
+            continue
         if cond[1]=="c1":
             c2 = cond[0]+'_c2_'+"_".join(cond[2:])
             keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
-            keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d.npy"
             #keypointspart="split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy"
             smplseqpart="split_subjects/0/fit-smplx/smplx-params_cut.npz"
-            smplseqpart="split_subjects/0/fit-smplx/smplx-params.npz"
             #print(take)
             #print(c2)
             keypoints_path = os.path.join(root, take, keypointspart)
@@ -289,6 +287,6 @@ if __name__ == "__main__":
     smplseq2= os.path.join(root, ref_take, smplpart)
     #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
-    visualiza_gait_batch(root+"/gait_983")
+    visualize_gait_batch(root+"/gait_114")
     #visualize_gait('mydataset/gait_682/20250919_c1_a3_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy', 'mydataset/gait_682/20250919_c2_a3_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy')
 

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from model.networks import DiffMLP
+from model.networks import DiffMLP, DiffTransformer
 
 
 class MetaModel(nn.Module):
@@ -18,7 +18,12 @@ class MetaModel(nn.Module):
     ):
         super().__init__()
 
-        self.arch = DiffMLP
+        if arch == "DiffMLP":
+            self.arch = DiffMLP
+        elif arch == "DiffTransformer":
+            self.arch = DiffTransformer
+        else:
+            raise ValueError(f"Architecture {arch} is not supported")
         self.dataset = dataset
 
         self.input_feats = nfeats
