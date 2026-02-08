@@ -90,7 +90,7 @@ def linear_blend_motion(motion1, motion2):
     return blended
 
 
-def sample(model, diffusion, cond_motion, args, use_sliding_window=False, sliding_window_step=30):
+def sample(model, diffusion, cond_motion, args, use_sliding_window=False, sliding_window_step=20):
     """
     Generates motion samples using the diffusion model conditioned on the provided motion.
 
