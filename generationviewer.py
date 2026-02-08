@@ -144,21 +144,21 @@ if __name__ == "__main__":
         "config_window7_v2", #30 6d
 
     ]
-    root="results/windows/window30_aligned"
+    #root="results/windows/window30_aligned"
     #root="results/windows/window60_aligned_slidingstep40"
     #root="results/full_sequences_baseline/sixd_baseline_with_metrics"
     #root="results/full_sequences_baseline/keypoints_baseline_with_metrics"
     #root="results/windows/window30_random_sampling"
-    root="results/presentation"
+    root="results/transformer/transformer30"
     v=Viewer()
     reference=None
-    i=8
+    i=5
     #conf="config16"
     for config in os.listdir(root):
-        
+        """
         if config not in configlist:
             print("Skipping ", config)
-            continue
+            continue"""
         config_path=os.path.join(root, config)
         for model in os.listdir(config_path):
             #if model in modellist:

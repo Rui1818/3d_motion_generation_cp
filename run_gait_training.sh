@@ -176,10 +176,10 @@ run_training "my_training/config_transformer5" 512 8 1e-4 200000 2e-4 openpose 0
 run_training "my_training/config_transformer6" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 0 60 mse
 run_training "my_training/config_transformer7" 512 8 1e-4 200000 2e-4 6d 0 0 0 135 0 30 mse
 run_training "my_training/config_transformer8" 512 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135 0 30 mse
-run_training "my_training/config_transformer9" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 0 30 mse
+run_training "my_training/config_transformer9" 512 8 1e-4 200000 2e-4 6d 0.05 0.5 0.5 135 0 30 mse
 run_training "my_training/config_transformer10" 512 8 1e-4 200000 2e-4 6d 0 0 0 135 0 60 mse
-run_training "my_training/config_transformer11" 512 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135 0 60 mse
-run_training "my_training/config_transformer12" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 0 60 mse
+run_training "my_training/config_transformer11" 512 8 1e-4 200000 2e-4 6d 0 0.1 0.5 135 0 60 mse
+run_training "my_training/config_transformer12" 512 8 1e-4 200000 2e-4 6d 0.05 0.1 0.5 135 0 60 mse
 run_training "my_training/config_transformer13" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 0 60 softdtw
 run_training "my_training/config_transformer14" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 0 60 softdtw
 run_training "my_training/config_transformer15" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 0 30 softdtw
