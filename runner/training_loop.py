@@ -76,6 +76,7 @@ class TrainLoop:
         self.eval_wrapper, self.eval_data, self.eval_gt_data = None, None, None
         self.use_ddp = False
         self.ddp_model = self.model
+        self.best_dtw_loss = float("inf")
 
     def _load_and_sync_parameters(self):
         resume_checkpoint = self.resume_checkpoint
@@ -239,6 +240,9 @@ class TrainLoop:
         if val_dtw_losses:
             avg_val_dtw_loss = sum(val_dtw_losses) / len(val_dtw_losses)
             logger.logkv("val_dtw_loss", avg_val_dtw_loss)
+            if avg_val_dtw_loss < self.best_dtw_loss:
+                self.best_dtw_loss = avg_val_dtw_loss
+                self.save_best_model()
         if val_dtw_losses_geo:
             avg_val_dtw_loss_geo = sum(val_dtw_losses_geo) / len(val_dtw_losses_geo)
             logger.logkv("val_dtw_loss_geodesic", avg_val_dtw_loss_geo)
@@ -247,6 +251,14 @@ class TrainLoop:
 
     def ckpt_file_name(self):
         return f"model{(self.step+self.resume_step):09d}.pt"
+
+    def save_best_model(self):
+        state_dict = self.mp_trainer.master_params_to_state_dict(self.mp_trainer.master_params)
+        logger.log(f"New best DTW loss: {self.best_dtw_loss:.5f}. Saving best model...")
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+        with open(os.path.join(self.save_dir, "best_model.pt"), "wb") as f:
+            torch.save(state_dict, f)
 
     def save(self):
         def save_checkpoint(params):
