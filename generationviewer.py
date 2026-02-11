@@ -122,7 +122,8 @@ if __name__ == "__main__":
                     "test_dataset/gait_809/20250819_c2_a5_Take1/split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy",]
     modellist=["model000080002", 
                "model000070213", 
-               "model000059813"
+               "model000059813",
+               "best_model"
                ]
     C.smplx_models = "smpl_models/"
     # Set the playback speed to 30 frames per second.
@@ -149,10 +150,11 @@ if __name__ == "__main__":
     #root="results/full_sequences_baseline/sixd_baseline_with_metrics"
     #root="results/full_sequences_baseline/keypoints_baseline_with_metrics"
     #root="results/windows/window30_random_sampling"
-    root="results/transformer/transformer30"
+    root="results/transformer_v2/transformer30_v2"
+    #root="results/presentation"
     v=Viewer()
     reference=None
-    i=5
+    i=8
     #conf="config16"
     for config in os.listdir(root):
         """
@@ -161,7 +163,8 @@ if __name__ == "__main__":
             continue"""
         config_path=os.path.join(root, config)
         for model in os.listdir(config_path):
-            #if model in modellist:
+            if model not in modellist:
+                continue
             model_path=os.path.join(config_path, model)
             if reference is None:
                 reference_path=os.path.join(model_path, "reference_motion_"+str(i)+".npy")
