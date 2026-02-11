@@ -11,6 +11,7 @@ from data_loaders.dataloader3d import TestDataset, load_data, MotionDataset, get
 from utils.transformation_sixd import sixd_to_smplx, smplx_to_6d
 from scipy.ndimage import gaussian_filter1d
 from utils.metrics import pose_distance_metric, calculate_jitter
+from utils.dct import dct, idct
 
 def load_diffusion_model(args):
     """
@@ -115,10 +116,11 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
         output_shape = (batch_size, args.input_motion_length, args.motion_nfeat)
         sample_fn = diffusion.p_sample_loop
 
+        sparse_input = dct(cond_motion) if args.use_dct else cond_motion
         generated_motion = sample_fn(
             model,
             output_shape,
-            sparse=cond_motion,
+            sparse=sparse_input,
             clip_denoised=False,
             model_kwargs=None,
             skip_timesteps=0,
@@ -128,6 +130,8 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
             noise=None,
             const_noise=False,
         )
+        if args.use_dct:
+            generated_motion = idct(generated_motion)
         return generated_motion
 
     # Sliding window generation
@@ -163,10 +167,11 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
 
         # Generate motion for this window
         output_shape = (batch_size, window_size, args.motion_nfeat)
+        sparse_window = dct(cond_window) if args.use_dct else cond_window
         generated_window = sample_fn(
             model,
             output_shape,
-            sparse=cond_window,
+            sparse=sparse_window,
             clip_denoised=False,
             model_kwargs=None,
             skip_timesteps=0,
@@ -176,6 +181,8 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
             noise=None,
             const_noise=False,
         )
+        if args.use_dct:
+            generated_window = idct(generated_window)
 
         # For the first window, take all frames
         if window_idx == 0:
@@ -200,7 +207,6 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
             generated_window_aligned = change_motion_position(generated_window_aligned, offset=frame_offset, overlapframe=overlaplen-1)
             
             generated_window_overlap = generated_window_aligned[:, :overlaplen, :]
-            #TODO adjust blending position
             generated_window_blended = linear_blend_motion(previously_generated_overlap, generated_window_overlap)
             generated_motion_concat_tensor[:, -overlaplen:, :] = generated_window_blended
             generated_window_slice = generated_window_aligned[:, -frames_to_take:, :]

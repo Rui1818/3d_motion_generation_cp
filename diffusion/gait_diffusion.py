@@ -22,6 +22,22 @@ from diffusion.gaussian_diffusion import (
     ModelVarType,
 )
 from utils.soft_dtw_cuda import SoftDTW
+from utils.dct import idct
+
+
+def root_normalize_and_trajectory(data):
+
+    assert len(data.shape) == 2  # (frames, features)
+
+    if data.shape[1] == 69:
+        frames, features = data.shape
+        root = (data[:, 21:24] + data[:, 30:33]) / 2.0  # Shape: (frames, 3)
+        data_reshaped = data.view(frames, 23, 3)
+        data_normalized = data_reshaped - root.unsqueeze(1)
+        data_out = data_normalized.reshape(frames, features)
+        trajectory = root - root[0:1] 
+        return data_out, trajectory
+
 def sum_flat(tensor: torch.Tensor) -> torch.Tensor:
     """
     Takes the sum over all non-batch dimensions.
@@ -250,16 +266,36 @@ class GaitDiffusionModel(GaussianDiffusion):
                 else:
                     pred_xstart = model_output
 
+                # Convert back to spatial domain for DTW metrics if using DCT
+                use_dct = model_kwargs.get("y", {}).get("use_dct", False)
+                if use_dct:
+                    pred_xstart_spatial = idct(pred_xstart)
+                    x_start_spatial = idct(x_start)
+                else:
+                    pred_xstart_spatial = pred_xstart
+                    x_start_spatial = x_start
+
                 dtw_losses = []
                 dtw_losses_geodesic = []
-                pred_np = pred_xstart.detach().cpu().numpy()
-                target_np = x_start.detach().cpu().numpy()
+                dtw_losses_pose = []
+                dtw_losses_trajectory = []
+                pred_np = pred_xstart_spatial.detach().cpu().numpy()
+                target_np = x_start_spatial.detach().cpu().numpy()
+
+
 
                 for i in range(len(pred_np)):
                     #TODO: seperate dtw for pose and translation
                     sl = int(seq_len[i].item()) if seq_len is not None else pred_np.shape[1]
                     path, d=dtw_path_from_metric(pred_np[i, :], target_np[i, :sl])
                     dtw_losses.append(d/len(path))  # normalize by path length
+                    if target_np.shape[2]==69:
+                        pred, pred_trajectory = root_normalize_and_trajectory(pred_np[i, :])
+                        tar, tar_trajectory = root_normalize_and_trajectory(target_np[i, :sl])
+                        path, d = dtw_path_from_metric(pred, tar)
+                        dtw_losses_pose.append(d/len(path))  # normalize by path length
+                        path, d = dtw_path_from_metric(pred_trajectory, tar_trajectory)
+                        dtw_losses_trajectory.append(d/len(path))  # normalize by path length
 
                     if target_np.shape[2]==135:
                         #calculate geodesic distance only on rotation part
@@ -270,6 +306,9 @@ class GaitDiffusionModel(GaussianDiffusion):
                     
                 
                 terms["dtw_loss"] = torch.tensor(np.mean(dtw_losses), device=x_start.device)
+                if target_np.shape[2]==69:
+                    terms["dtw_loss_pose"] = torch.tensor(np.mean(dtw_losses_pose), device=x_start.device)
+                    terms["dtw_loss_trajectory"] = torch.tensor(np.mean(dtw_losses_trajectory), device=x_start.device)
                 if target_np.shape[2]==135:
                     #TODO: log pose and translation dtw separately
                     terms["dtw_loss_geodesic"] = torch.tensor(np.mean(dtw_losses_geodesic), device=x_start.device)

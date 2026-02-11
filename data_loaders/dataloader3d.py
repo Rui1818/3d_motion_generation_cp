@@ -5,6 +5,7 @@ import torch
 
 from torch.utils.data import DataLoader, Dataset
 from utils.transformation_sixd import smplx_to_6d
+from utils.dct import dct
 
 
 def drop_duplicate_frames(data):
@@ -99,6 +100,7 @@ class MotionDataset(Dataset):
         train_dataset_repeat_times=1,
         no_normalization=False,
         mode="train",
+        use_dct=False,
     ):
         self.dataset = dataset
         self.mean = mean
@@ -106,6 +108,7 @@ class MotionDataset(Dataset):
         self.train_dataset_repeat_times = train_dataset_repeat_times
         self.no_normalization = no_normalization
         self.input_motion_length = input_motion_length
+        self.use_dct = use_dct
 
         # motion_clean and motion_without_orth are now dictionaries
         # with keys as action identifiers (e.g., 's01_a1')
@@ -186,7 +189,15 @@ class MotionDataset(Dataset):
         """
         seqlen = seqlen if seqlen < self.input_motion_length else self.input_motion_length
 
-        return seqlen, motion.float(), motion_w_o.float()
+        motion = motion.float()
+        motion_w_o = motion_w_o.float()
+
+        if self.use_dct:
+            # Apply DCT along temporal axis; unsqueeze to add batch dim for dct()
+            motion = dct(motion.unsqueeze(0)).squeeze(0)
+            motion_w_o = dct(motion_w_o.unsqueeze(0)).squeeze(0)
+
+        return seqlen, motion, motion_w_o
     
 class TestDataset(Dataset):
     def __init__(

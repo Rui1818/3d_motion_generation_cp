@@ -166,6 +166,11 @@ def add_model_options(parser):
     group.add_argument(
         "--ff_size", default=2048, type=int, help="Feed-forward layer size."
     )
+    group.add_argument(
+        "--use_dct",
+        action="store_true",
+        help="Apply orthonormal DCT to motion sequences before diffusion (frequency-domain training).",
+    )
 
 
 def add_data_options(parser):

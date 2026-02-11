@@ -155,7 +155,7 @@ class TrainLoop:
             batch,
             t,
             cond=cond,
-            model_kwargs={"y": {"seq_len": seqlen}},
+            model_kwargs={"y": {"seq_len": seqlen, "use_dct": self.args.use_dct}},
             dataset=self.data.dataset,
         )
 
@@ -204,6 +204,8 @@ class TrainLoop:
         val_losses = []
         val_dtw_losses = []
         val_dtw_losses_geo = []
+        val_dtw_losses_pose = []
+        val_dtw_losses_trajectory = []
 
         with torch.no_grad():
             for seqlen, motion, cond in self.val_data:
@@ -221,7 +223,7 @@ class TrainLoop:
                     motion,
                     t,
                     cond,
-                    model_kwargs={"y": {"seq_len": seqlen}},
+                    model_kwargs={"y": {"seq_len": seqlen, "use_dct": self.args.use_dct}},
                     dataset=self.data.dataset,
                     eval_dtw=True,
                 )
@@ -233,6 +235,10 @@ class TrainLoop:
                     val_dtw_losses.append(losses["dtw_loss"].item())
                 if "dtw_loss_geodesic" in losses:
                     val_dtw_losses_geo.append(losses["dtw_loss_geodesic"].item())
+                if "dtw_loss_pose" in losses:
+                    val_dtw_losses_pose.append(losses["dtw_loss_pose"].item())
+                if "dtw_loss_trajectory" in losses:
+                    val_dtw_losses_trajectory.append(losses["dtw_loss_trajectory"].item())
 
         # Log average validation loss
         avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0.0
@@ -246,7 +252,12 @@ class TrainLoop:
         if val_dtw_losses_geo:
             avg_val_dtw_loss_geo = sum(val_dtw_losses_geo) / len(val_dtw_losses_geo)
             logger.logkv("val_dtw_loss_geodesic", avg_val_dtw_loss_geo)
-
+        if val_dtw_losses_pose:
+            avg_val_dtw_loss_pose = sum(val_dtw_losses_pose) / len(val_dtw_losses_pose)
+            logger.logkv("val_dtw_loss_pose", avg_val_dtw_loss_pose)
+        if val_dtw_losses_trajectory:
+            avg_val_dtw_loss_trajectory = sum(val_dtw_losses_trajectory) / len(val_dtw_losses_trajectory)
+            logger.logkv("val_dtw_loss_trajectory", avg_val_dtw_loss_trajectory)
         self.model.train()
 
     def ckpt_file_name(self):

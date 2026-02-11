@@ -82,6 +82,7 @@ def main():
         motion_clean,
         motion_w_o,
         input_motion_length=args.input_motion_length,
+        use_dct=args.use_dct,
     )
     print("datasetsize:", len(dataset))
 
@@ -109,6 +110,7 @@ def main():
         val_motion_w_o,
         input_motion_length=args.input_motion_length,
         mode="test",
+        use_dct=args.use_dct,
     )
     print("validation dataset size:", len(val_dataset))
 
