@@ -91,7 +91,7 @@ def linear_blend_motion(motion1, motion2):
     return blended
 
 
-def sample(model, diffusion, cond_motion, args, use_sliding_window=False, sliding_window_step=20):
+def sample(model, diffusion, cond_motion, args, use_sliding_window=False):
     """
     Generates motion samples using the diffusion model conditioned on the provided motion.
 
@@ -101,7 +101,6 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
         cond_motion: Conditional motion input (batch_size, total_frames, features)
         args: Arguments containing model configuration
         use_sliding_window: If True, generates motion using sliding windows
-        sliding_window_step: Number of frames to slide the window after each generation
 
     Returns:
         Generated motion tensor
@@ -109,6 +108,12 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, slidin
     batch_size = cond_motion.shape[0]
     total_frames = cond_motion.shape[1]
     window_size = args.input_motion_length
+    if window_size==60:
+        sliding_window_step = 40
+    elif window_size==30:
+        sliding_window_step = 20
+    else:
+        raise ValueError("Unsupported window size for sliding window generation.")
     
 
     if not use_sliding_window:

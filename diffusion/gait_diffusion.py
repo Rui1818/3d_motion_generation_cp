@@ -32,8 +32,8 @@ def root_normalize_and_trajectory(data):
     if data.shape[1] == 69:
         frames, features = data.shape
         root = (data[:, 21:24] + data[:, 30:33]) / 2.0  # Shape: (frames, 3)
-        data_reshaped = data.view(frames, 23, 3)
-        data_normalized = data_reshaped - root.unsqueeze(1)
+        data_reshaped = data.reshape(frames, 23, 3)
+        data_normalized = data_reshaped - root[:, np.newaxis, :]
         data_out = data_normalized.reshape(frames, features)
         trajectory = root - root[0:1] 
         return data_out, trajectory

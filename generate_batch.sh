@@ -14,9 +14,9 @@
 #CONFIGS=("config_window4_v2" "config_window5_v2" "config_window6_v2" "config_window10_v2" "config_window11_v2" "config_window12_v2")
 #CONFIGS=("config_window13_v2" "config_window14_v2") #softdtw with short windows
 #CONFIGS=("config_window15_v2" "config_window16_v2") #softdtw full sequences
-#CONFIGS=("config_transformer1" "config_transformer2" "config_transformer3" "config_transformer7" "config_transformer8" "config_transformer9") #transformer models
-#CONFIGS=("config_transformer4" "config_transformer5" "config_transformer6" "config_transformer10" "config_transformer11" "config_transformer12")
-CONFIGS=("config_transformer15" "config_transformer16") #transformer models with softdtw
+#CONFIGS=("config_transformer1_v2" "config_transformer2_v2" "config_transformer3_v2" "config_transformer7_v2" "config_transformer8_v2" "config_transformer9_v2") #transformer models
+#CONFIGS=("config_transformer4_v2" "config_transformer5_v2" "config_transformer6_v2" "config_transformer10_v2" "config_transformer11_v2" "config_transformer12_v2")
+CONFIGS=("config_transformer15_v2" "config_transformer16_v2") #transformer models with softdtw
 
 
 # 2. List your model checkpoint names here (without the .pt extension)
@@ -28,11 +28,11 @@ CONFIGS=("config_transformer15" "config_transformer16") #transformer models with
 #MODELS=("model000032427" "model000043227" "model000070227" "model000086427" "model000118827" "model000160002") #window30_aligned and window60_aligned
 #MODELS=("model000037827" "model000064827" "model000108027" "model000160002") #window60_aligned_slidingstep40
 #MODELS=("model000027027" "model000043227" "model000070227" "model000108027" "model000160002")
-MODELS=("model000035035" "model000049035" "model000077035" "model000119035" "model000161035" "model000200025") #transformer models
+MODELS=("model000035035" "model000049035" "model000077035" "model000119035" "model000161035" "best_model" ) #transformer models
 # 3. Common settings
 INPUT_LENGTH=30
-BASE_TRAINING_DIR="my_training/transformer"
-BASE_RESULTS_DIR="results/transformer30_sdtw"
+BASE_TRAINING_DIR="my_training/transformer_v2"
+BASE_RESULTS_DIR="results/transformer30_sdtw_v2"
 
 # =================================================
 

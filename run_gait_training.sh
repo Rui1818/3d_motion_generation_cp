@@ -34,6 +34,7 @@ run_training() {
     local lr_anneal=${12}
     local motion_length=${13}
     local loss_func=${14}
+    local use_dct=${15}
 
     echo "--- Starting Training: $save_dir ---"
     echo "Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
@@ -62,6 +63,7 @@ run_training() {
         --sparse_dim "$motionnfeatures" \
         --lr_anneal_steps "$lr_anneal" \
         --loss_func "$loss_func" \
+        --use_dct "$use_dct" \
         --overwrite
 
     # Check if training was successful
@@ -106,21 +108,6 @@ run_training() {
 #run_training "my_training/config_sdtw2_v2" 512 12 1e-4 160000 2e-4 openpose 0 0 0 69 20000 240 softdtw
 #run_training "my_training/config_sdtw3_v2" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 20000 240 softdtw
 #run_training "my_training/config_sdtw4_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 20000 240 softdtw
-
-#
-#local save_dir=$1
-#local latent_dim=$2
-#local layers=$3
-#local weight_decay=$4
-#local num_steps=$5
-#local lr=$6
-#local keypointtype=$7
-#local cond_mask_prob=$8
-#local lambda_rot_vel=$9
-#local lambda_transl_vel=${10}
-#local motionnfeatures=${11}
-#local lr_anneal=${12}
-#local motion_length=${13}
 
 #short motion windows
 #anneal factor 20
@@ -168,22 +155,24 @@ run_training() {
 
 
 #transformers 
-run_training "my_training/config_transformer1_v2" 512 8 1e-4 200000 2e-4 openpose 0 0 0 69 0 30 mse
-run_training "my_training/config_transformer2_v2" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69 0 30 mse
-run_training "my_training/config_transformer3_v2" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 0 30 mse
-run_training "my_training/config_transformer4_v2" 512 8 1e-4 200000 2e-4 openpose 0 0 0.5 69 0 60 mse
-run_training "my_training/config_transformer5_v2" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69 0 60 mse
-run_training "my_training/config_transformer6_v2" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 0 60 mse
-run_training "my_training/config_transformer7_v2" 512 8 1e-4 200000 2e-4 6d 0 0 0 135 0 30 mse
-run_training "my_training/config_transformer8_v2" 512 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135 0 30 mse
-run_training "my_training/config_transformer9_v2" 512 8 1e-4 200000 2e-4 6d 0.05 0.5 0.5 135 0 30 mse
-run_training "my_training/config_transformer10_v2" 512 8 1e-4 200000 2e-4 6d 0 0 0 135 0 60 mse
-run_training "my_training/config_transformer11_v2" 512 8 1e-4 200000 2e-4 6d 0 0.1 0.5 135 0 60 mse
-run_training "my_training/config_transformer12_v2" 512 8 1e-4 200000 2e-4 6d 0.05 0.1 0.5 135 0 60 mse
-run_training "my_training/config_transformer13_v2" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 0 60 softdtw
-run_training "my_training/config_transformer14_v2" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 0 60 softdtw
-run_training "my_training/config_transformer15_v2" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 0 30 softdtw
-run_training "my_training/config_transformer16_v2" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 0 30 softdtw
+#run_training "my_training/config_transformer1_v2" 512 8 1e-4 200000 2e-4 openpose 0 0 0 69 30000 30 mse
+#run_training "my_training/config_transformer2_v2" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69 30000 30 mse
+#run_training "my_training/config_transformer3_v2" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 30000 30 mse
+#run_training "my_training/config_transformer4_v2" 512 8 1e-4 200000 2e-4 openpose 0 0 0.5 69 30000 60 mse
+#run_training "my_training/config_transformer5_v2" 512 8 1e-4 200000 2e-4 openpose 0 1 0 69 30000 60 mse
+#run_training "my_training/config_transformer6_v2" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 30000 60 mse
+#run_training "my_training/config_transformer7_v2" 512 8 1e-4 200000 2e-4 6d 0 0 0 135 30000 30 mse
+#run_training "my_training/config_transformer8_v2" 512 8 1e-4 200000 2e-4 6d 0 0.5 0.5 135 30000 30 mse
+#run_training "my_training/config_transformer9_v2" 512 8 1e-4 200000 2e-4 6d 0.05 0.5 0.5 135 30000 30 mse
+#run_training "my_training/config_transformer10_v2" 512 8 1e-4 200000 2e-4 6d 0 0 0 135 30000 60 mse
+#run_training "my_training/config_transformer11_v2" 512 8 1e-4 200000 2e-4 6d 0 0.1 0.5 135 30000 60 mse
+#run_training "my_training/config_transformer12_v2" 512 8 1e-4 200000 2e-4 6d 0.05 0.1 0.5 135 30000 60 mse
+#run_training "my_training/config_transformer13_v2" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 30000 60 softdtw
+#run_training "my_training/config_transformer14_v2" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 30000 60 softdtw
+#run_training "my_training/config_transformer15_v2" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 30000 30 softdtw
+#run_training "my_training/config_transformer16_v2" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 30000 30 softdtw
+
+run_training "my_training/test" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 30000 30 mse True
 
 # Config 4: Add more configs as you like...
 # run_training "my_training/config4_..." ... ... ...
