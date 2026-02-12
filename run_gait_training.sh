@@ -38,6 +38,8 @@ run_training() {
 
     echo "--- Starting Training: $save_dir ---"
     echo "Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
+    echo "Keypoint Type: $keypointtype, Cond Mask Prob: $cond_mask_prob, Lambda Rot Vel: $lambda_rot_vel, Lambda Transl Vel: $lambda_transl_vel"
+    echo "Motion N Features: $motionnfeatures, LR Anneal: $lr_anneal, Motion Length: $motion_length, Loss Func: $loss_func, Use DCT: $use_dct"
 
     python gait_train.py \
         --save_dir "$save_dir" \
