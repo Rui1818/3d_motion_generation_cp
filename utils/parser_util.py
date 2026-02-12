@@ -168,7 +168,8 @@ def add_model_options(parser):
     )
     group.add_argument(
         "--use_dct",
-        action="store_true",
+        default=False,
+        type=bool,
         help="Apply orthonormal DCT to motion sequences before diffusion (frequency-domain training).",
     )
 
