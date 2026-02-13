@@ -269,8 +269,16 @@ class GaitDiffusionModel(GaussianDiffusion):
                 # Convert back to spatial domain for DTW metrics if using DCT
                 use_dct = model_kwargs.get("y", {}).get("use_dct", False)
                 if use_dct:
-                    pred_xstart_spatial = idct(pred_xstart)
-                    x_start_spatial = idct(x_start)
+                    dct_stats = model_kwargs.get("y", {}).get("dct_stats", None)
+                    pred_denorm = pred_xstart
+                    x_denorm = x_start
+                    if dct_stats is not None:
+                        dct_mean = dct_stats["dct_mean"].to(pred_xstart.device)
+                        dct_std = dct_stats["dct_std"].to(pred_xstart.device)
+                        pred_denorm = pred_xstart * (dct_std + 1e-8) + dct_mean
+                        x_denorm = x_start * (dct_std + 1e-8) + dct_mean
+                    pred_xstart_spatial = idct(pred_denorm)
+                    x_start_spatial = idct(x_denorm)
                 else:
                     pred_xstart_spatial = pred_xstart
                     x_start_spatial = x_start

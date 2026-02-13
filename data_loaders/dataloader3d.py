@@ -88,6 +88,26 @@ def sample_matching_startframe(motion_clean, match_dict, key, idx, window_size):
     return normalize_motion(res)
 
 
+def compute_dct_stats(dataset):
+    """
+    Compute per-frequency-band mean and std of DCT coefficients by iterating
+    through the dataset, so windowing/padding/normalization match training exactly.
+    The dataset must have use_dct=True and dct_mean/dct_std=None.
+    Returns tensors of shape (T, D) for normalization.
+    """
+    all_dct = []
+    for i in range(len(dataset)):
+        _, motion, motion_w_o = dataset[i]
+        all_dct.append(motion)
+        all_dct.append(motion_w_o)
+    all_dct = torch.stack(all_dct, dim=0)  # (N, T, D)
+    dct_mean = all_dct.mean(dim=0)  # (T, D)
+    dct_std = all_dct.std(dim=0)    # (T, D)
+    # Clamp std to avoid amplifying near-constant frequency components
+    dct_std = dct_std.clamp(min=0.01)
+    return dct_mean, dct_std
+
+
 class MotionDataset(Dataset):
     def __init__(
         self,
@@ -101,6 +121,8 @@ class MotionDataset(Dataset):
         no_normalization=False,
         mode="train",
         use_dct=False,
+        dct_mean=None,
+        dct_std=None,
     ):
         self.dataset = dataset
         self.mean = mean
@@ -109,6 +131,8 @@ class MotionDataset(Dataset):
         self.no_normalization = no_normalization
         self.input_motion_length = input_motion_length
         self.use_dct = use_dct
+        self.dct_mean = dct_mean  # shape (T, D) — per-frequency-band mean
+        self.dct_std = dct_std    # shape (T, D) — per-frequency-band std
 
         # motion_clean and motion_without_orth are now dictionaries
         # with keys as action identifiers (e.g., 's01_a1')
@@ -196,6 +220,10 @@ class MotionDataset(Dataset):
             # Apply DCT along temporal axis; unsqueeze to add batch dim for dct()
             motion = dct(motion.unsqueeze(0)).squeeze(0)
             motion_w_o = dct(motion_w_o.unsqueeze(0)).squeeze(0)
+            # Normalize per-frequency-band to stabilize diffusion training
+            if self.dct_mean is not None and self.dct_std is not None:
+                motion = (motion - self.dct_mean) / (self.dct_std + 1e-8)
+                motion_w_o = (motion_w_o - self.dct_mean) / (self.dct_std + 1e-8)
 
         return seqlen, motion, motion_w_o
     

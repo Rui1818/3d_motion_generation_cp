@@ -23,8 +23,9 @@ from utils import dist_util
 
 
 class TrainLoop:
-    def __init__(self, args, model, diffusion, data, val_data=None):
+    def __init__(self, args, model, diffusion, data, val_data=None, dct_stats=None):
         self.args = args
+        self.dct_stats = dct_stats
         self.dataset = args.dataset
         self.model = model
         self.diffusion = diffusion
@@ -223,7 +224,7 @@ class TrainLoop:
                     motion,
                     t,
                     cond,
-                    model_kwargs={"y": {"seq_len": seqlen, "use_dct": self.args.use_dct}},
+                    model_kwargs={"y": {"seq_len": seqlen, "use_dct": self.args.use_dct, "dct_stats": self.dct_stats}},
                     dataset=self.data.dataset,
                     eval_dtw=True,
                 )

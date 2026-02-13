@@ -65,7 +65,7 @@ run_training() {
         --sparse_dim "$motionnfeatures" \
         --lr_anneal_steps "$lr_anneal" \
         --loss_func "$loss_func" \
-        --use_dct "$use_dct" \
+        ${use_dct:+--use_dct} \
         --overwrite
 
     # Check if training was successful
@@ -174,7 +174,8 @@ run_training() {
 #run_training "my_training/config_transformer15_v2" 512 8 1e-4 200000 2e-4 openpose 0.1 1 0 69 30000 30 softdtw
 #run_training "my_training/config_transformer16_v2" 512 8 1e-4 200000 2e-4 6d 0.1 0.5 0.5 135 30000 30 softdtw
 
-run_training "my_training/test" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 30000 30 mse True
+#run_training "my_training/test" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 30000 30 mse True
+run_training "my_training/test2" 512 8 1e-4 100000 2e-4 6d 0 0 0 135 30000 30 mse True
 
 # Config 4: Add more configs as you like...
 # run_training "my_training/config4_..." ... ... ...

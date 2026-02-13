@@ -6,7 +6,7 @@ import numpy as np
 
 import torch
 
-from data_loaders.dataloader3d import get_dataloader, load_data, MotionDataset
+from data_loaders.dataloader3d import get_dataloader, load_data, MotionDataset, compute_dct_stats
 from runner.train_mlp import train_step
 from runner.training_loop import TrainLoop
 
@@ -17,7 +17,7 @@ from utils.parser_util import train_args
 from diffusion import logger
 
 
-def train_diffusion_model(args, dataloader, val_dataloader=None):
+def train_diffusion_model(args, dataloader, val_dataloader=None, dct_stats=None):
     print("creating model and diffusion...")
     logger.configure(
         dir=args.save_dir,
@@ -48,7 +48,7 @@ def train_diffusion_model(args, dataloader, val_dataloader=None):
         )
 
     print("Training...")
-    TrainLoop(args, model, diffusion, dataloader, val_dataloader).run_loop()
+    TrainLoop(args, model, diffusion, dataloader, val_dataloader, dct_stats=dct_stats).run_loop()
     print("Done.")
 
 
@@ -86,6 +86,21 @@ def main():
     )
     print("datasetsize:", len(dataset))
 
+    # Compute per-frequency-band normalization stats if using DCT
+    # by iterating through the dataset (so windowing/padding match training)
+    dct_mean, dct_std = None, None
+    if args.use_dct:
+        print("Computing DCT normalization statistics from dataset...")
+        dct_mean, dct_std = compute_dct_stats(dataset)
+        print(f"DCT stats computed: mean range [{dct_mean.min():.3f}, {dct_mean.max():.3f}], "
+              f"std range [{dct_std.min():.3f}, {dct_std.max():.3f}]")
+        # Save stats for use at generation time
+        torch.save({"dct_mean": dct_mean, "dct_std": dct_std},
+                    os.path.join(args.save_dir, "dct_stats.pt"))
+        # Set the stats on the dataset so normalization is applied during training
+        dataset.dct_mean = dct_mean
+        dataset.dct_std = dct_std
+
     dataloader = get_dataloader(
         dataset, "train", batch_size=args.batch_size, num_workers=args.num_workers
     )
@@ -111,6 +126,8 @@ def main():
         input_motion_length=args.input_motion_length,
         mode="test",
         use_dct=args.use_dct,
+        dct_mean=dct_mean,  # use training stats for val too
+        dct_std=dct_std,
     )
     print("validation dataset size:", len(val_dataset))
 
@@ -119,7 +136,8 @@ def main():
     )
 
     #model_type = args.arch.split("_")[0]
-    train_diffusion_model(args, dataloader, val_dataloader)
+    dct_stats = {"dct_mean": dct_mean, "dct_std": dct_std} if dct_mean is not None else None
+    train_diffusion_model(args, dataloader, val_dataloader, dct_stats=dct_stats)
     """
     if model_type == "diffusion":
         train_diffusion_model(args, dataloader)

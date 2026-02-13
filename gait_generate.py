@@ -91,7 +91,15 @@ def linear_blend_motion(motion1, motion2):
     return blended
 
 
-def sample(model, diffusion, cond_motion, args, use_sliding_window=False):
+def _dct_normalize(x, dct_mean, dct_std):
+    """Normalize DCT coefficients using precomputed per-frequency stats."""
+    return (x - dct_mean.to(x.device)) / (dct_std.to(x.device) + 1e-8)
+
+def _dct_denormalize(x, dct_mean, dct_std):
+    """Denormalize DCT coefficients back to original scale."""
+    return x * (dct_std.to(x.device) + 1e-8) + dct_mean.to(x.device)
+
+def sample(model, diffusion, cond_motion, args, use_sliding_window=False, dct_stats=None):
     """
     Generates motion samples using the diffusion model conditioned on the provided motion.
 
@@ -101,6 +109,7 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False):
         cond_motion: Conditional motion input (batch_size, total_frames, features)
         args: Arguments containing model configuration
         use_sliding_window: If True, generates motion using sliding windows
+        dct_stats: Dict with 'dct_mean' and 'dct_std' tensors for DCT normalization
 
     Returns:
         Generated motion tensor
@@ -114,14 +123,18 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False):
         sliding_window_step = 20
     else:
         raise ValueError("Unsupported window size for sliding window generation.")
-    
+
 
     if not use_sliding_window:
         # Original behavior: generate entire motion at once
         output_shape = (batch_size, args.input_motion_length, args.motion_nfeat)
         sample_fn = diffusion.p_sample_loop
 
-        sparse_input = dct(cond_motion) if args.use_dct else cond_motion
+        sparse_input = cond_motion
+        if args.use_dct:
+            sparse_input = dct(cond_motion)
+            if dct_stats is not None:
+                sparse_input = _dct_normalize(sparse_input, dct_stats["dct_mean"], dct_stats["dct_std"])
         generated_motion = sample_fn(
             model,
             output_shape,
@@ -136,6 +149,8 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False):
             const_noise=False,
         )
         if args.use_dct:
+            if dct_stats is not None:
+                generated_motion = _dct_denormalize(generated_motion, dct_stats["dct_mean"], dct_stats["dct_std"])
             generated_motion = idct(generated_motion)
         return generated_motion
 
@@ -172,7 +187,11 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False):
 
         # Generate motion for this window
         output_shape = (batch_size, window_size, args.motion_nfeat)
-        sparse_window = dct(cond_window) if args.use_dct else cond_window
+        sparse_window = cond_window
+        if args.use_dct:
+            sparse_window = dct(cond_window)
+            if dct_stats is not None:
+                sparse_window = _dct_normalize(sparse_window, dct_stats["dct_mean"], dct_stats["dct_std"])
         generated_window = sample_fn(
             model,
             output_shape,
@@ -187,6 +206,8 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False):
             const_noise=False,
         )
         if args.use_dct:
+            if dct_stats is not None:
+                generated_window = _dct_denormalize(generated_window, dct_stats["dct_mean"], dct_stats["dct_std"])
             generated_window = idct(generated_window)
 
         # For the first window, take all frames
@@ -340,6 +361,17 @@ def main():
     # Load the trained diffusion model
     model, diffusion = load_diffusion_model(args)
 
+    # Load DCT normalization stats if using DCT
+    dct_stats = None
+    if args.use_dct:
+        model_dir = os.path.dirname(args.model_path)
+        dct_stats_path = os.path.join(model_dir, "dct_stats.pt")
+        if os.path.exists(dct_stats_path):
+            dct_stats = torch.load(dct_stats_path, map_location="cpu")
+            print(f"Loaded DCT normalization stats from {dct_stats_path}")
+        else:
+            print("WARNING: use_dct is True but no dct_stats.pt found. Running without DCT normalization.")
+
     # --- Prepare a single data sample for inference ---
     # This part is a simplified version of your dataloader to get one sample.
     # You can modify this to select a specific file.
@@ -383,7 +415,7 @@ def main():
         res={}
         # --- Run the generation ---
         if use_sliding_window:
-            generated_motion, generated_motion_concat = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window)
+            generated_motion, generated_motion_concat = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window, dct_stats=dct_stats)
             generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
             generated_motion_concat_np = generated_motion_concat.squeeze(0).cpu().numpy()
             reference_np=reference.squeeze(0).cpu().numpy()
@@ -394,7 +426,7 @@ def main():
             gen_concat_path=os.path.join(args.output_dir, "generated_motion_concat_"+str(i)+".npy")
             np.save(gen_concat_path, generated_motion_concat_np)
         else:
-            generated_motion = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window)
+            generated_motion = sample(model, diffusion, condition, args, use_sliding_window=use_sliding_window, dct_stats=dct_stats)
 
             generated_motion_np = generated_motion.squeeze(0).cpu().numpy()
             reference_np=reference.squeeze(0).cpu().numpy()
