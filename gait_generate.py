@@ -10,7 +10,7 @@ from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 from data_loaders.dataloader3d import TestDataset, load_data, MotionDataset, get_dataloader
 from utils.transformation_sixd import sixd_to_smplx, smplx_to_6d
 from scipy.ndimage import gaussian_filter1d
-from utils.metrics import pose_distance_metric, calculate_jitter
+from utils.metrics import pose_distance_metric, calculate_jitter, mpjpe_distance_metric, pampjpe_distance_metric
 from utils.dct import dct, idct
 
 def load_diffusion_model(args):
@@ -301,7 +301,7 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         assert generated_motion_np.shape[1]==69
         generated_motion_np=change_motion_position(generated_motion_np)
         reference_np=change_motion_position(reference_np)
-        path, dtw_distance=dtw_path_from_metric(reference_np, generated_motion_np)
+        path, dtw_distance=dtw_path_from_metric(reference_np, generated_motion_np, metric=mpjpe_distance_metric)
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
         #calulate root normalizad distance and trajectory distance dtw
         generated_motion_reshape=generated_motion_np.reshape(-1,23,3)
@@ -309,14 +309,14 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         reference_np, reference_trajectory = root_normalize_and_trajectory(reference_np_reshape)
         generated_motion_np, generated_trajectory = root_normalize_and_trajectory(generated_motion_reshape)
         #calculate root normalized dtw
-        path, dtw_distance_root_normalized=dtw_path_from_metric(reference_np, generated_motion_np)
+        path, dtw_distance_root_normalized=dtw_path_from_metric(reference_np, generated_motion_np, metric=pampjpe_distance_metric)
         dtw_distance_root_normalized=dtw_distance_root_normalized/len(path)  # normalize by length of path
         path, dtw_distance_trajectory=dtw_path_from_metric(reference_trajectory, generated_trajectory)
         dtw_distance_trajectory=dtw_distance_trajectory/len(path)  # normalize by length of path
 
         #calculate jitter
         jitter=calculate_jitter(generated_motion_reshape)
-        res={'sample_id': index, 'dtw_distance': dtw_distance, 'dtw_distance_root_normalized': dtw_distance_root_normalized, 'dtw_distance_trajectory': dtw_distance_trajectory, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0], 'jitter': jitter}
+        res={'sample_id': index, 'MPJPE': dtw_distance, 'PAMPJPE': dtw_distance_root_normalized, 'dtw_distance_trajectory': dtw_distance_trajectory, 'jitter': jitter}
         return res
     elif keypointtype=='6d':
         assert generated_motion_np.shape[1]==135
@@ -326,7 +326,7 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         dtw_distance=dtw_distance/len(path)  # normalize by length of path
         path, dtw_distance_geodesic=dtw_path_from_metric(ref_sixd, gen_sixd, metric=pose_distance_metric)
         dtw_distance_geodesic=dtw_distance_geodesic/len(path)  # normalize by length of path
-        res={'sample_id': index, 'dtw_distance_geodesic':dtw_distance_geodesic, 'dtw_distance_transl': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
+        res={'sample_id': index, 'MPJRE':dtw_distance_geodesic, 'dtw_distance_transl': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
         return res
     elif keypointtype=='6d_transformed':
         assert generated_motion_np.shape[1]==22

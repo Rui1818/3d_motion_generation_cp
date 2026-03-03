@@ -150,11 +150,11 @@ if __name__ == "__main__":
     #root="results/full_sequences_baseline/sixd_baseline_with_metrics"
     #root="results/full_sequences_baseline/keypoints_baseline_with_metrics"
     #root="results/windows/window30_random_sampling"
-    root="results/transformer_v2/transformer30_v2"
+    root="results/dcttransformer30/"
     #root="results/presentation"
     v=Viewer()
     reference=None
-    i=8
+    i=5
     #conf="config16"
     for config in os.listdir(root):
         """

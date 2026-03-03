@@ -2,7 +2,6 @@
 # Copyright (c) 2022 Guy Tevet
 #
 # This code is based on https://github.com/GuyTevet/motion-diffusion-model
-# Copyright (c) Meta Platforms, Inc. All Rights Reserved
 
 from diffusion import gaussian_diffusion as gd
 from diffusion.respace import space_timesteps, SpacedDiffusion

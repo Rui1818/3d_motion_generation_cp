@@ -62,6 +62,56 @@ def pose_distance_metric(frame_A, frame_B):
     return np.mean(joint_errors)
 
 
+
+def mpjpe_distance_metric(frame_A, frame_B):
+    """
+    MPJPE distance function for use with dtw_path_from_metric.
+    Input: Two flattened frames of 3D position data (Shape: [Num_Joints * 3])
+    Output: Scalar mean per-joint Euclidean distance
+    """
+    n_joints = len(frame_A) // 3
+    pA = frame_A.reshape(n_joints, 3)
+    pB = frame_B.reshape(n_joints, 3)
+    return np.mean(np.linalg.norm(pA - pB, axis=-1))
+
+
+def _procrustes_align(A, B):
+    """
+    Align B to A using Procrustes analysis (optimal rotation, scale, translation).
+    A, B: (n_joints, 3)
+    Returns B aligned to A.
+    """
+    mu_A = A.mean(axis=0)
+    mu_B = B.mean(axis=0)
+    A0 = A - mu_A
+    B0 = B - mu_B
+    norm_A = np.sqrt((A0 ** 2).sum())
+    norm_B = np.sqrt((B0 ** 2).sum())
+    A0 /= norm_A
+    B0 /= norm_B
+    U, _, Vt = np.linalg.svd(B0.T @ A0)
+    # Handle reflection
+    d = np.sign(np.linalg.det(Vt.T @ U.T))
+    D = np.diag([1.0, 1.0, d])
+    R = Vt.T @ D @ U.T
+    return norm_A * (B0 @ R) + mu_A
+
+
+def pampjpe_distance_metric(frame_A, frame_B):
+    """
+    PA-MPJPE distance function for use with dtw_path_from_metric.
+    Applies Procrustes alignment (optimal rotation + scale + translation) to B
+    before computing MPJPE.
+    Input: Two flattened frames of 3D position data (Shape: [Num_Joints * 3])
+    Output: Scalar mean per-joint Euclidean distance after Procrustes alignment
+    """
+    n_joints = len(frame_A) // 3
+    pA = frame_A.reshape(n_joints, 3)
+    pB = frame_B.reshape(n_joints, 3)
+    pB_aligned = _procrustes_align(pA, pB)
+    return np.mean(np.linalg.norm(pA - pB_aligned, axis=-1))
+
+
 def calculate_jitter(motion, fps=30):
     """
     Calculates the jitter (jerk) of a motion sequence.
