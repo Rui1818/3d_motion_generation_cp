@@ -93,7 +93,7 @@ def _procrustes_align(A, B):
     # Handle reflection
     d = np.sign(np.linalg.det(Vt.T @ U.T))
     D = np.diag([1.0, 1.0, d])
-    R = Vt.T @ D @ U.T
+    R = U @ D @ Vt
     return norm_A * (B0 @ R) + mu_A
 
 

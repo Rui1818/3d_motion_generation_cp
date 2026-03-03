@@ -268,13 +268,16 @@ def transform_motion_back(args, betas, generated_motion_np, reference_np):
 
 def root_normalize_and_trajectory(data):
     assert len(data.shape)==3  # (frames, joints, 3)
-    trajectory=data[:,0,:].copy()  # root joint trajectory
     if data.shape[1]==23:
         root = (data[:,7]+data[:, 10])/2
         data=(data - root[:,np.newaxis, :])
         trajectory=root
         trajectory=root - root[0:1]  
         return data.reshape(data.shape[0], -1), trajectory.reshape(data.shape[0], -1)
+    elif data.shape[1]==22:
+        root=data[:,0,:].copy()
+        data=(data - root[:,np.newaxis, :]) 
+        return data
     else:
         raise ValueError(f"Unknown keypoint type")
 
@@ -301,43 +304,49 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         assert generated_motion_np.shape[1]==69
         generated_motion_np=change_motion_position(generated_motion_np)
         reference_np=change_motion_position(reference_np)
-        path, dtw_distance=dtw_path_from_metric(reference_np, generated_motion_np, metric=mpjpe_distance_metric)
-        dtw_distance=dtw_distance/len(path)  # normalize by length of path
+        path, mpjpe=dtw_path_from_metric(reference_np, generated_motion_np, metric=mpjpe_distance_metric)
+        mpjpe=mpjpe/len(path)  # normalize by length of path
         #calulate root normalizad distance and trajectory distance dtw
         generated_motion_reshape=generated_motion_np.reshape(-1,23,3)
         reference_np_reshape=reference_np.reshape(-1,23,3)
         reference_np, reference_trajectory = root_normalize_and_trajectory(reference_np_reshape)
         generated_motion_np, generated_trajectory = root_normalize_and_trajectory(generated_motion_reshape)
         #calculate root normalized dtw
-        path, dtw_distance_root_normalized=dtw_path_from_metric(reference_np, generated_motion_np, metric=pampjpe_distance_metric)
-        dtw_distance_root_normalized=dtw_distance_root_normalized/len(path)  # normalize by length of path
+        path, pampjpe=dtw_path_from_metric(reference_np, generated_motion_np, metric=pampjpe_distance_metric)
+        pampjpe=pampjpe/len(path)  # normalize by length of path
         path, dtw_distance_trajectory=dtw_path_from_metric(reference_trajectory, generated_trajectory)
         dtw_distance_trajectory=dtw_distance_trajectory/len(path)  # normalize by length of path
 
         #calculate jitter
         jitter=calculate_jitter(generated_motion_reshape)
-        res={'sample_id': index, 'MPJPE': dtw_distance, 'PAMPJPE': dtw_distance_root_normalized, 'dtw_distance_trajectory': dtw_distance_trajectory, 'jitter': jitter}
+        res={'sample_id': index, 'MPJPE': mpjpe, 'PAMPJPE': pampjpe, 'dtw_distance_trajectory': dtw_distance_trajectory, 'jitter': jitter}
         return res
     elif keypointtype=='6d':
         assert generated_motion_np.shape[1]==135
         ref_sixd=reference_np[:,3:]
         gen_sixd=generated_motion_np[:,3:]
-        path, dtw_distance=dtw_path_from_metric(reference_np[:, :3], generated_motion_np[:, :3]) # translation part
-        dtw_distance=dtw_distance/len(path)  # normalize by length of path
+        path, traj=dtw_path_from_metric(reference_np[:, :3], generated_motion_np[:, :3]) # translation part
+        traj=traj/len(path)  # normalize by length of path
         path, dtw_distance_geodesic=dtw_path_from_metric(ref_sixd, gen_sixd, metric=pose_distance_metric)
         dtw_distance_geodesic=dtw_distance_geodesic/len(path)  # normalize by length of path
-        res={'sample_id': index, 'MPJRE':dtw_distance_geodesic, 'dtw_distance_transl': dtw_distance, 'reference_frames': reference_np.shape[0], 'generated_frames': generated_motion_np.shape[0]}
+        res={'sample_id': index, 'MPJRE':dtw_distance_geodesic, 'dtw_distance_transl': traj}
         return res
     elif keypointtype=='6d_transformed':
         assert generated_motion_np.shape[1]==22
         generated_motion_np=change_motion_position(generated_motion_np)
         reference_np=change_motion_position(reference_np)
+        path, mpjpe=dtw_path_from_metric(reference_np.reshape(-1,66), generated_motion_np.reshape(-1,66), metric=mpjpe_distance_metric)
+        mpjpe=mpjpe/len(path)  # normalize by length of path
+        
+        jitter=calculate_jitter(generated_motion_np)
+
+        generated_motion_np=root_normalize_and_trajectory(generated_motion_np)
+        reference_np=root_normalize_and_trajectory(reference_np)
         gen=generated_motion_np.reshape(-1,66)
         ref=reference_np.reshape(-1,66)
-        path, dtw_distance=dtw_path_from_metric(ref, gen)
-        dtw_distance=dtw_distance/len(path)  # normalize by length of path
-        jitter=calculate_jitter(generated_motion_np)
-        return dtw_distance, jitter
+        path, pampjpe=dtw_path_from_metric(ref, gen, metric=pampjpe_distance_metric)
+        pampjpe=pampjpe/len(path)  # normalize by length of path
+        return mpjpe, pampjpe, jitter
     else:
         raise ValueError("Unknown keypoint type for DTW calculation.")
 
@@ -435,7 +444,7 @@ def main():
         
         if args.keypointtype=='6d':
             #calculate dtw only on for 6d after transformation
-            res['dtw_distance'], res['jitter'] = calculate_metrics(reference_np, generated_motion_np, '6d_transformed', i) # normalize to be comparable with openpose
+            res['MPJPE_6d'], res['PAMPJPE_6d'], res['jitter'] = calculate_metrics(reference_np, generated_motion_np, '6d_transformed', i) # normalize to be comparable with openpose
         dtw_metrics.append(res)
 
         np.save(ref_path, reference_np)

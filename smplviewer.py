@@ -288,5 +288,5 @@ if __name__ == "__main__":
     #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
     #visualize_gait_batch(root+"/gait_114")
-    visualize_gait('trajectory.npy')
+    visualize_gait('test.npy')
 
