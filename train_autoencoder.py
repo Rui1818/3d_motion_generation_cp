@@ -2,7 +2,7 @@
 Training script for the MotionAutoencoder used for FID feature extraction.
 
 Loss:
-    L = MSE(recon, motion)   applied separately for c1 and c2 with individual weight updates
+    L = L1(recon, motion)   applied separately for c1 and c2 with individual weight updates
 
 c1 and c2 are treated as fully independent motion samples. The dataloader returns
 pairs but the pairing is ignored — each sequence gets its own forward pass and
@@ -76,7 +76,7 @@ def parse_args():
     parser.add_argument("--save_dir", required=True, type=str)
     parser.add_argument("--epochs", default=300, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
-    parser.add_argument("--lr", default=3e-4, type=float)
+    parser.add_argument("--lr", default=1e-4, type=float)
     parser.add_argument("--weight_decay", default=1e-4, type=float)
     parser.add_argument(
         "--repeat_times",
@@ -102,7 +102,7 @@ def evaluate(model, loader, device):
 
         for motion in (motion_c1, motion_c2):
             recon, _ = model(motion)
-            loss = F.mse_loss(recon, motion)
+            loss = F.l1_loss(recon, motion)
             total_loss += loss.item() * motion.shape[0]
             n += motion.shape[0]
 
@@ -186,7 +186,7 @@ def main():
 
             for motion in (motion_c1, motion_c2):
                 recon, _ = model(motion)
-                loss = F.mse_loss(recon, motion)
+                loss = F.l1_loss(recon, motion)
 
                 optimizer.zero_grad()
                 loss.backward()

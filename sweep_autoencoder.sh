@@ -3,7 +3,7 @@
 # Each config trains independently and saves to its own subdirectory.
 # Run with: bash sweep_autoencoder.sh
 
-DATASET_PATH="./dataset/mydataset"
+DATASET_PATH="mydataset"
 KEYPOINTTYPE="6d"       # choices: 6d | openpose | smpl
 EPOCHS=200
 BASE_SAVE="./checkpoints/autoencoder_sweep"
@@ -39,30 +39,30 @@ run() {
 }
 
 #            window  latent  hidden  dropout  repeat  lr      keypointtype
-# ── Baseline ──────────────────────────────────────────────────────────────
+# ── Baseline ───────────────────────────────────────────────────────────────
+run            60     128     256     0.1      4    1e-4    6d
+run            60     128     512     0.1      4    1e-4    6d
 run            60     128     256     0.1      4    3e-4    6d
-run            60     128     512     0.1      4    3e-4    6d
-run            60     128     256     0.1      4    1e-3    6d
-run            60      64     256     0.1      4    3e-4    6d
-run            60     256     512     0.1      4    3e-4    6d
+run            60      64     256     0.1      4    1e-4    6d
+run            60     256     512     0.1      4    1e-4    6d
 
+run            60     128     256     0.1      4    1e-4    openpose
+run            60     128     512     0.1      4    1e-4    openpose
 run            60     128     256     0.1      4    3e-4    openpose
-run            60     128     512     0.1      4    3e-4    openpose
-run            60     128     256     0.1      4    1e-3    openpose
-run            60     64     256     0.1      4    3e-4    openpose
-run            60     256     512     0.1      4    3e-4    openpose
+run            60      64     256     0.1      4    1e-4    openpose
+run            60     256     512     0.1      4    1e-4    openpose
 
+run            30     128     256     0.1      10    1e-4    6d
+run            30     128     512     0.1      10    1e-4    6d
 run            30     128     256     0.1      10    3e-4    6d
-run            30     128     512     0.1      10    3e-4    6d
-run            30     128     256     0.1      10    1e-3    6d
-run            30      64     256     0.1      10    3e-4    6d
-run            30     256     512     0.1      10    3e-4    6d
+run            30      64     256     0.1      10    1e-4    6d
+run            30     256     512     0.1      10    1e-4    6d
 
+run            30     128     256     0.1      10    1e-4    openpose
+run            30     128     512     0.1      10    1e-4    openpose
 run            30     128     256     0.1      10    3e-4    openpose
-run            30     128     512     0.1      10    3e-4    openpose
-run            30     128     256     0.1      10    1e-3    openpose
-run            30     64     256     0.1      10    3e-4    openpose
-run            30     256     512     0.1      10    3e-4    openpose
+run            30      64     256     0.1      10    1e-4    openpose
+run            30     256     512     0.1      10    1e-4    openpose
 
 echo "============================================"
 echo "All configs done. Compare with tensorboard:"
