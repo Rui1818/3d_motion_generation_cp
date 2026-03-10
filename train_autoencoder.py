@@ -92,7 +92,20 @@ def parse_args():
 
 
 @torch.no_grad()
-def evaluate(model, loader, device):
+def compute_normalization_stats(loader, device):
+    """Compute per-dimension mean and std from the training loader."""
+    all_motions = []
+    for _, motion_c1, motion_c2 in loader:
+        all_motions.append(motion_c1)
+        all_motions.append(motion_c2)
+    all_motions = torch.cat(all_motions, dim=0)  # (N, T, D)
+    mean = all_motions.mean(dim=(0, 1)).to(device)          # (D,)
+    std = all_motions.std(dim=(0, 1)).clamp(min=1e-5).to(device)  # (D,)
+    return mean, std
+
+
+@torch.no_grad()
+def evaluate(model, loader, device, mean, std):
     model.eval()
     total_loss = 0.0
     n = 0
@@ -101,8 +114,9 @@ def evaluate(model, loader, device):
         motion_c2 = motion_c2.to(device)
 
         for motion in (motion_c1, motion_c2):
-            recon, _ = model(motion)
-            loss = F.l1_loss(recon, motion)
+            motion_norm = (motion - mean) / std
+            recon, _ = model(motion_norm)
+            loss = F.l1_loss(recon, motion_norm)
             total_loss += loss.item() * motion.shape[0]
             n += motion.shape[0]
 
@@ -158,6 +172,14 @@ def main():
         val_dataset, "test", batch_size=args.batch_size, num_workers=0
     )
 
+    # ── Normalization stats ───────────────────────────────────────────────────
+    print("Computing normalization statistics from training data...")
+    mean, std = compute_normalization_stats(train_loader, device)
+    print(f"  mean range: [{mean.min():.4f}, {mean.max():.4f}]")
+    print(f"  std  range: [{std.min():.4f}, {std.max():.4f}]")
+    np.save(os.path.join(args.save_dir, "norm_mean.npy"), mean.cpu().numpy())
+    np.save(os.path.join(args.save_dir, "norm_std.npy"), std.cpu().numpy())
+
     # ── Model ─────────────────────────────────────────────────────────────────
     model = MotionAutoencoder(
         input_dim=input_dim,
@@ -185,8 +207,9 @@ def main():
             motion_c2 = motion_c2.to(device)
 
             for motion in (motion_c1, motion_c2):
-                recon, _ = model(motion)
-                loss = F.l1_loss(recon, motion)
+                motion_norm = (motion - mean) / std
+                recon, _ = model(motion_norm)
+                loss = F.l1_loss(recon, motion_norm)
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -199,7 +222,7 @@ def main():
         scheduler.step()
 
         avg_train = total_loss / n
-        val_loss = evaluate(model, val_loader, device)
+        val_loss = evaluate(model, val_loader, device, mean, std)
 
         print(
             f"Epoch {epoch:3d}/{args.epochs} | "
@@ -216,6 +239,8 @@ def main():
                     "epoch": epoch,
                     "model_state_dict": model.state_dict(),
                     "val_loss": val_loss,
+                    "norm_mean": mean.cpu(),
+                    "norm_std": std.cpu(),
                     "args": vars(args),
                 },
                 ckpt_path,
@@ -230,6 +255,8 @@ def main():
                     "input_dim": input_dim,
                     "latent_dim": args.latent_dim,
                     "hidden_dim": args.hidden_dim,
+                    "norm_mean": mean.cpu(),
+                    "norm_std": std.cpu(),
                     "args": vars(args),
                 },
                 encoder_path,
