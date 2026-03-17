@@ -178,7 +178,9 @@ def main():
     for epoch in range(1, args.epochs + 1):
         model.train()
         total_loss = 0.0
+        total_grad_norm = 0.0
         n = 0
+        n_updates = 0
 
         for _, motion_c1, motion_c2 in train_loader:
             motion_c1 = motion_c1.to(device)
@@ -190,23 +192,28 @@ def main():
 
                 optimizer.zero_grad()
                 loss.backward()
-                nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                grad_norm = nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
 
                 total_loss += loss.item() * motion.shape[0]
+                total_grad_norm += grad_norm.item()
                 n += motion.shape[0]
+                n_updates += 1
 
         scheduler.step()
 
         avg_train = total_loss / n
+        avg_grad_norm = total_grad_norm / n_updates
         val_loss = evaluate(model, val_loader, device)
 
         print(
             f"Epoch {epoch:3d}/{args.epochs} | "
-            f"train loss={avg_train:.4f} | val loss={val_loss:.4f}"
+            f"train loss={avg_train:.4f} | val loss={val_loss:.4f} | "
+            f"grad norm={avg_grad_norm:.4f}"
         )
         writer.add_scalar("Loss/train", avg_train, epoch)
         writer.add_scalar("Loss/val", val_loss, epoch)
+        writer.add_scalar("GradNorm/train", avg_grad_norm, epoch)
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
