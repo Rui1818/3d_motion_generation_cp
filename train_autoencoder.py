@@ -42,6 +42,16 @@ KEYPOINTTYPE_TO_DIM = {
     "smpl": 66,       # 22 joints * 3
 }
 
+# Scale factor applied to translation dims (0-2) for 6d to match rotation range [-1, 1].
+TRANSL_SCALE = 3.0
+
+
+def scale_transl(motion):
+    """Scale translation dims in-place on a (B, T, 135) tensor."""
+    motion = motion.clone()
+    motion[:, :, :3] = motion[:, :, :3] / TRANSL_SCALE
+    return motion
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train MotionAutoencoder for FID")
@@ -101,6 +111,8 @@ def evaluate(model, loader, device):
         motion_c2 = motion_c2.to(device)
 
         for motion in (motion_c1, motion_c2):
+            if motion.shape[-1] == 135:
+                motion = scale_transl(motion)
             recon, _ = model(motion)
             loss = F.l1_loss(recon, motion)
             total_loss += loss.item() * motion.shape[0]
@@ -196,6 +208,8 @@ def main():
             motion_c2 = motion_c2.to(device)
 
             for motion in (motion_c1, motion_c2):
+                if motion.shape[-1] == 135:
+                    motion = scale_transl(motion)
                 recon, _ = model(motion)
                 loss = F.l1_loss(recon, motion)
 
