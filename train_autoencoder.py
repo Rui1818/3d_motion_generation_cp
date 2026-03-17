@@ -171,6 +171,15 @@ def main():
     optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=args.lr * 0.01)
 
+    # ── Data scale diagnostics ────────────────────────────────────────────────
+    first_batch = next(iter(train_loader))
+    _, sample_c1, _ = first_batch
+    if args.keypointtype == "6d":
+        print(f"[Diagnostics] Translation (dims 0-2)  min={sample_c1[:, :, :3].min():.4f}  max={sample_c1[:, :, :3].max():.4f}  std={sample_c1[:, :, :3].std():.4f}")
+        print(f"[Diagnostics] Rotation    (dims 3-134) min={sample_c1[:, :, 3:].min():.4f}  max={sample_c1[:, :, 3:].max():.4f}  std={sample_c1[:, :, 3:].std():.4f}")
+    else:
+        print(f"[Diagnostics] Motion min={sample_c1.min():.4f}  max={sample_c1.max():.4f}  std={sample_c1.std():.4f}")
+
     # ── Training loop ─────────────────────────────────────────────────────────
     writer = SummaryWriter(log_dir=os.path.join(args.save_dir, "tensorboard"))
 
