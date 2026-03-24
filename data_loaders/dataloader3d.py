@@ -288,7 +288,7 @@ class TestDataset(Dataset):
     
 
 
-def load_data(motion_path, split, keypointtype,**kwargs):
+def load_data(motion_path, split, keypointtype, subjects=None, **kwargs):
     """
     Load SMPL keypoint .npy files from a folder into dictionaries organized by action.
 
@@ -296,6 +296,7 @@ def load_data(motion_path, split, keypointtype,**kwargs):
         dataset_path (str): Path to the folder containing .npy files.
         split (str): 'train' or 'test'
         keypointtype (str): Type of keypoints to load
+        subjects (list or None): If provided, only load subjects whose folder name is in this list.
         **kwargs: Optional keyword arguments for future extensions.
 
     Returns:
@@ -312,6 +313,8 @@ def load_data(motion_path, split, keypointtype,**kwargs):
         motion_w_o = {}
 
         for patient in sorted(os.listdir(motion_path)):
+            if subjects is not None and patient not in subjects:
+                continue
             patient_path = os.path.join(motion_path, patient)
             for file in sorted(os.listdir(patient_path)):
                 take = file.split('_')
