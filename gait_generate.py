@@ -1,4 +1,5 @@
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import random
 from tslearn.metrics import dtw_path_from_metric
 import numpy as np
@@ -454,14 +455,6 @@ def main():
 
     # Log summary statistics
     if dtw_metrics:
-        dtw_distances = [m['dtw_distance'] for m in dtw_metrics]
-        print("\n=== DTW Metrics Summary ===")
-        print(f"Total samples: {len(dtw_metrics)}")
-        print(f"Mean DTW Distance: {np.mean(dtw_distances):.4f}")
-        print(f"Std DTW Distance: {np.std(dtw_distances):.4f}")
-        print(f"Min DTW Distance: {np.min(dtw_distances):.4f}")
-        print(f"Max DTW Distance: {np.max(dtw_distances):.4f}")
-
         # Save metrics to file
         metrics_path = os.path.join(args.output_dir, "dtw_metrics.npy")
         np.save(metrics_path, dtw_metrics)

@@ -6,7 +6,7 @@
 DATASET_PATH="mydataset"
 KEYPOINTTYPE="6d"       # choices: 6d | openpose | smpl
 EPOCHS=200
-BASE_SAVE="./checkpoints/autoencoder_sweep"
+BASE_SAVE="./checkpoints/test"
 
 run() {
     local window=$1
@@ -16,7 +16,9 @@ run() {
     local repeat=$5
     local lr=$6
     local kptype=$7
-    local name="w${window}_l${latent}_h${hidden}_d${dropout}_r${repeat}_lr${lr}_kp${kptype}"
+    local decay=$8
+    local batch_size=$9
+    local name="w${window}_l${latent}_h${hidden}_d${dropout}_r${repeat}_lr${lr}_kp${kptype}_decay${decay}_batch${batch_size}"
     local save_dir="${BASE_SAVE}/${name}"
 
     echo "============================================"
@@ -34,35 +36,38 @@ run() {
         --repeat_times        "$repeat" \
         --epochs              "$EPOCHS" \
         --lr                  "$lr" \
-        --batch_size          16 \
-        --weight_decay        1e-4
+        --batch_size          "$batch_size" \
+        --weight_decay        "$decay"
 }
 
 #            window  latent  hidden  dropout  repeat  lr      keypointtype
 # ── Baseline ───────────────────────────────────────────────────────────────
-run            60     128     256     0.1      4    1e-4    6d
-run            60     128     512     0.1      4    1e-4    6d
-run            60     128     256     0.1      4    3e-4    6d
-run            60      64     256     0.1      4    1e-4    6d
-run            60     256     512     0.1      4    1e-4    6d
 
-run            60     128     256     0.1      4    1e-4    openpose
-run            60     128     512     0.1      4    1e-4    openpose
-run            60     128     256     0.1      4    3e-4    openpose
-run            60      64     256     0.1      4    1e-4    openpose
-run            60     256     512     0.1      4    1e-4    openpose
 
-run            30     128     256     0.1      10    1e-4    6d
-run            30     128     512     0.1      10    1e-4    6d
-run            30     128     256     0.1      10    3e-4    6d
-run            30      64     256     0.1      10    1e-4    6d
-run            30     256     512     0.1      10    1e-4    6d
 
-run            30     128     256     0.1      10    1e-4    openpose
-run            30     128     512     0.1      10    1e-4    openpose
-run            30     128     256     0.1      10    3e-4    openpose
-run            30      64     256     0.1      10    1e-4    openpose
-run            30     256     512     0.1      10    1e-4    openpose
+#run            60      64     256     0.1      1    3e-5    6d    1e-4    32
+#run            60      64     256     0.05      1    3e-5    6d    1e-5    32
+run            60      64     256     0.1      1    3e-5    6d    1e-4    32
+
+
+
+
+
+
+
+
+
+
+#run            60     128     256     0.1      4    1e-4    openpose
+#run            60      64     256     0.1      4    1e-4    openpose
+
+#run            30      64     128     0.1      4    1e-4    6d
+#run            30      64     256     0.1      4    1e-4    6d
+#run            30     128     512     0.1      10    1e-4    6d
+#run            30     128     256     0.1      10    3e-4    6d
+
+#run            30     128     256     0.1      10    1e-4    openpose
+#run            30      64     256     0.1      10    1e-4    openpose
 
 echo "============================================"
 echo "All configs done. Compare with tensorboard:"

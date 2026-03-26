@@ -2,7 +2,7 @@
 
 # --- Static Parameters ---
 # Settings that are the same for all experiments
-DATASET_PATH="mydataset"
+DATASET_PATH="final_dataset"
 DATASET_NAME="gait"
 BATCH_SIZE=8
 SAVE_INTERVAL=200
@@ -41,7 +41,7 @@ run_training() {
     echo "Keypoint Type: $keypointtype, Cond Mask Prob: $cond_mask_prob, Lambda Rot Vel: $lambda_rot_vel, Lambda Transl Vel: $lambda_transl_vel"
     echo "Motion N Features: $motionnfeatures, LR Anneal: $lr_anneal, Motion Length: $motion_length, Loss Func: $loss_func, Use DCT: $use_dct"
 
-    python gait_train.py \
+    python gait_crossval.py \
         --save_dir "$save_dir" \
         --dataset_path "$DATASET_PATH" \
         --input_motion_length "$motion_length" \
@@ -82,76 +82,47 @@ run_training() {
 
 # Openpose keypoints
 #v2 is with lr annealing after 18000 steps and dataset with cartesian product augmentation
-#run_training "my_training/config2_v2" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 18000 240 mse
+run_training "final_training/full/config1" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 18000 240 mse
 
 #velocity
-#run_training "my_training/config3_v2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 18000 240
+run_training "final_training/full/config2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 18000 240 mse
 
 #cond_mask_prob 0.1
-#run_training "my_training/config5_v2" 512 12 1e-4 160000 2e-4 openpose 0.1 0 0 69 18000 240
-#run_training "my_training/config7_v2" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 18000 240
+run_training "final_training/full/config3" 512 12 1e-4 160000 2e-4 openpose 0.1 0 0 69 18000 240 mse
+run_training "final_training/full/config4" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 18000 240 mse
 
 # 6d rotations
-#run_training "my_training/config8_v2" 256 8 1e-4 160000 2e-4 6d 0 0 0 135 18000 240
-#run_training "my_training/config9_v2" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 18000 240
+run_training "final_training/full/config5" 256 8 1e-4 160000 2e-4 6d 0 0 0 135 18000 240 mse
+run_training "final_training/full/config6" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 18000 240 mse
 #velocity
-#run_training "my_training/config14_v2" 256 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 18000 240
+run_training "final_training/full/config7" 256 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 18000 240 mse
 
 #velocity + cond_mask_prob 0.1
-#run_training "my_training/config15_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 18000 240
-#run_training "my_training/config16_v2" 256 12 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 18000 240
-#run_training "my_training/config25_v2" 512 12 1e-4 160000 2e-4 openpose 0 0 0 69 18000 240
-#run_training "my_training/config26_v2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 18000 240
-#run_training "my_training/config28_v2" 512 12 1e-4 160000 2e-4 6d 0 0 0 135 18000 240
-#run_training "my_training/config29_v2" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 18000 240
+run_training "final_training/full/config8" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 18000 240 mse
+run_training "final_training/full/config9" 256 12 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 18000 240 mse
+run_training "final_training/full/config10" 512 12 1e-4 160000 2e-4 openpose 0 0 0 69 18000 240 mse
+run_training "final_training/full/config11" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 18000 240 mse
 
 #softdtw training
-#run_training "my_training/config_sdtw1_v2" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 20000 240 softdtw
-#run_training "my_training/config_sdtw2_v2" 512 12 1e-4 160000 2e-4 openpose 0 0 0 69 20000 240 softdtw
-#run_training "my_training/config_sdtw3_v2" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 20000 240 softdtw
-#run_training "my_training/config_sdtw4_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 20000 240 softdtw
+run_training "final_training/full/config12" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 20000 240 softdtw
+run_training "final_training/full/config13" 512 12 1e-4 160000 2e-4 openpose 0 0 0 69 20000 240 softdtw
+run_training "final_training/full/config14" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 20000 240 softdtw
+run_training "final_training/full/config15" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 20000 240 softdtw
 
 #short motion windows
-#anneal factor 20
-#run_training "my_training/config_window1_new" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 32000 30
-#run_training "my_training/config_window2_new" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 32000 30
-#run_training "my_training/config_window3_new" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 32000 30
-#run_training "my_training/config_window4_new" 512 8 1e-4 160000 2e-4 openpose 0 0 0.5 69 32000 60
-#run_training "my_training/config_window5_new" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 32000 60
-#run_training "my_training/config_window6_new" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 32000 60
-#run_training "my_training/config_window7_new" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 32000 30
-#run_training "my_training/config_window8_new" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 32000 30
-#run_training "my_training/config_window9_new" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 32000 30
-#run_training "my_training/config_window10_new" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 32000 60
-#run_training "my_training/config_window11_new" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 32000 60
-#run_training "my_training/config_window12_new" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 32000 60
+run_training "final_training/window/config1" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 32000 30 mse
+run_training "final_training/window/config2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 32000 30 mse
+run_training "final_training/window/config4" 512 8 1e-4 160000 2e-4 openpose 0 0 0.5 69 32000 60 mse
+run_training "final_training/window/config6" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 32000 60 mse
+run_training "final_training/window/config9" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 32000 30 mse
+run_training "final_training/window/config10" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 32000 60 mse
+run_training "final_training/window/config12" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 32000 60 mse
 
 #softdtw with short windows
-#run_training "my_training/config_window13" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 60
-#run_training "my_training/config_window14" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60
-
-
-#short motion windows
-#with the adjusted sampling (aligned)
-#anneal factor 20
-#run_training "my_training/config_window1_v2" 512 8 1e-4 160000 2e-4 openpose 0 0 0 69 0 30 mse
-#run_training "my_training/config_window2_v2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 0 30 mse
-#run_training "my_training/config_window3_v2" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 30 mse
-#run_training "my_training/config_window4_v2" 512 8 1e-4 160000 2e-4 openpose 0 0 0.5 69 0 60 mse
-#run_training "my_training/config_window5_v2" 512 8 1e-4 160000 2e-4 openpose 0 1 0 69 0 60 mse
-#run_training "my_training/config_window6_v2" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 60 mse
-#run_training "my_training/config_window7_v2" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 0 30 mse
-#run_training "my_training/config_window8_v2" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 0 30 mse
-#run_training "my_training/config_window9_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 30 mse
-#run_training "my_training/config_window10_v2" 512 8 1e-4 160000 2e-4 6d 0 0 0 135 0 60 mse
-#run_training "my_training/config_window11_v2" 512 8 1e-4 160000 2e-4 6d 0 0.5 0.5 135 0 60 mse
-#run_training "my_training/config_window12_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60 mse
-
-#softdtw with short windows
-#run_training "my_training/config_window13_v2" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 60 softdtw
-#run_training "my_training/config_window14_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60 softdtw
-#run_training "my_training/config_window15_v2" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 30 softdtw
-#run_training "my_training/config_window16_v2" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 30 softdtw
+run_training "final_training/window/config13" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 60 softdtw
+run_training "final_training/window/config14" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 60 softdtw
+run_training "final_training/window/config15" 512 8 1e-4 160000 2e-4 openpose 0.1 1 0 69 0 30 softdtw
+run_training "final_training/window/config16" 512 8 1e-4 160000 2e-4 6d 0.1 0.5 0.5 135 0 30 softdtw
 
 
 

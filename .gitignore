@@ -16,3 +16,5 @@ unused_samples/
 training_log.out
 results/
 final_dataset/
+checkpoints/
+final_training/

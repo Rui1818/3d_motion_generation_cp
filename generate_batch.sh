@@ -15,10 +15,16 @@
 #CONFIGS=("config_window13_v2" "config_window14_v2") #softdtw with short windows
 #CONFIGS=("config_window15_v2" "config_window16_v2") #softdtw full sequences
 #CONFIGS=("config_transformer1_v2" "config_transformer2_v2" "config_transformer3_v2" "config_transformer7_v2" "config_transformer8_v2" "config_transformer9_v2") #transformer models
-#CONFIGS=("config_transformer4_v2" "config_transformer5_v2" "config_transformer6_v2" "config_transformer10_v2" "config_transformer11_v2" "config_transformer12_v2")
-CONFIGS=("config_transformer15_v2" "config_transformer16_v2") #transformer models with softdtw
+#CONFIGS=("config_transformer6_v2" "config_transformer10_v2" "config_transformer11_v2" "config_transformer12_v2")
+#CONFIGS=("config_transformer15_v2" "config_transformer16_v2") #transformer models with softdtw
 
 
+#CONFIGS=("config_dcttransformer" "config_dcttransformer2" "config_dcttransformer3" "config_dcttransformer7" "config_dcttransformer8" "config_dcttransformer9" "config_dcttransformer15" "config_dcttransformer16") #dcttransformer models
+#CONFIGS=("config_dcttransformer4" "config_dcttransformer5" "config_dcttransformer6" "config_dcttransformer10" "config_dcttransformer11" "config_dcttransformer12" "config_dcttransformer13" "config_dcttransformer14") #dcttransformer models
+
+
+CONFIGS=("config_dctmlp" "config_dctmlp2" "config_dctmlp3" "config_dctmlp7" "config_dctmlp8" "config_dctmlp9" "config_dctmlp15" "config_dctmlp16") #dctmlp models
+#CONFIGS=("config_dctmlp4" "config_dctmlp5" "config_dctmlp6" "config_dctmlp10" "config_dctmlp11" "config_dctmlp12" "config_dctmlp13" "config_dctmlp14") #dctmlp models
 # 2. List your model checkpoint names here (without the .pt extension)
 # The script assumes these specific filenames exist inside every config folder
 #MODELS=("model000037827" "model000081027" "model000108027" "model000160002") #window60_aligned_slidingstep40_v2
@@ -31,8 +37,8 @@ CONFIGS=("config_transformer15_v2" "config_transformer16_v2") #transformer model
 MODELS=("model000035035" "model000049035" "model000077035" "model000119035" "model000161035" "best_model" ) #transformer models
 # 3. Common settings
 INPUT_LENGTH=30
-BASE_TRAINING_DIR="my_training/transformer_v2"
-BASE_RESULTS_DIR="results/transformer30_sdtw_v2"
+BASE_TRAINING_DIR="my_training/dctmlp"
+BASE_RESULTS_DIR="results/dctmlp_30"
 
 # =================================================
 

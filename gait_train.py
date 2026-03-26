@@ -1,6 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import json
 import random
 
@@ -56,7 +55,6 @@ def train_diffusion_model(args, dataloader, val_dataloader=None, dct_stats=None)
 
 def main():
     args = train_args()
-
     torch.backends.cudnn.benchmark = False
     random.seed(args.seed)
     np.random.seed(args.seed)

@@ -17,14 +17,8 @@ class MetaModel(nn.Module):
         **kargs,
     ):
         super().__init__()
-        """
-        if arch == "DiffMLP":
-            self.arch = DiffMLP
-        elif arch == "DiffTransformer":
-            self.arch = DiffTransformer
-        else:
-            raise ValueError(f"Architecture {arch} is not supported")"""
-        self.arch = DiffTransformer
+        #self.arch = DiffTransformer
+        self.arch = DiffMLP
         self.dataset = dataset
 
         self.input_feats = nfeats
