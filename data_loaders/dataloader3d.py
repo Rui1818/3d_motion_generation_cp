@@ -367,6 +367,8 @@ def load_data(motion_path, split, keypointtype, subjects=None, **kwargs):
         betas = [] if keypointtype == "6d" else None
 
         for patient in sorted(os.listdir(motion_path)):
+            if subjects is not None and patient not in subjects:
+                continue
             patient_path = os.path.join(motion_path, patient)
             for file in sorted(os.listdir(patient_path)):
                 take = file.split('_')
