@@ -326,7 +326,9 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         assert generated_motion_np.shape[1]==135
         ref_sixd=reference_np[:,3:]
         gen_sixd=generated_motion_np[:,3:]
-        path, traj=dtw_path_from_metric(reference_np[:, :3], generated_motion_np[:, :3]) # translation part
+        ref_transl = reference_np[:, :3] - reference_np[0:1, :3]
+        gen_transl = generated_motion_np[:, :3] - generated_motion_np[0:1, :3]
+        path, traj=dtw_path_from_metric(ref_transl, gen_transl) # translation part, root-normalised
         traj=traj/len(path)  # normalize by length of path
         path, dtw_distance_geodesic=dtw_path_from_metric(ref_sixd, gen_sixd, metric=pose_distance_metric)
         dtw_distance_geodesic=dtw_distance_geodesic/len(path)  # normalize by length of path
