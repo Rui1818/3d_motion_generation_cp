@@ -229,7 +229,8 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     use_sliding_window = args.input_motion_length < 240
 
-    fold_metrics = []
+    fold_metrics        = []
+    fold_concat_metrics = []  # full-concat metrics (sliding window only)
     real_raw = []   # full reference sequences; extract_features will window them for FID
     gen_raw = []    # individual generated windows (window_size, D) for FID
 
@@ -245,11 +246,12 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
                 use_sliding_window=True, dct_stats=dct_stats
             )
 
-            gen_windows_np = generated_motion_windows.squeeze(0).cpu().numpy()  # (n_windows*ws, D)
-            reference_np   = reference.squeeze(0).cpu().numpy()                 # (T, D)
-            total_frames   = condition.shape[1]
-            start_indices  = _sliding_window_start_indices(total_frames, ws)
-            n_windows      = len(start_indices)
+            gen_windows_np  = generated_motion_windows.squeeze(0).cpu().numpy()  # (n_windows*ws, D)
+            generated_np    = generated_motion.squeeze(0).cpu().numpy()           # (T_concat, D)
+            reference_np    = reference.squeeze(0).cpu().numpy()                  # (T, D)
+            total_frames    = condition.shape[1]
+            start_indices   = _sliding_window_start_indices(total_frames, ws)
+            n_windows       = len(start_indices)
 
             # ── Per-window metrics ────────────────────────────────────────────
             window_metrics = []
@@ -292,6 +294,20 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
                 vals = [m[key] for m in window_metrics if key in m]
                 res[key] = float(np.mean(vals))
 
+            # ── Full-concat metrics ───────────────────────────────────────────
+            concat_res = calculate_metrics(reference_np, generated_np, args.keypointtype, i)
+            if args.keypointtype == "6d":
+                gen_back, ref_back = transform_motion_back(
+                    args, batch_betas, generated_np.copy(), reference_np.copy()
+                )
+                mpjpe_6d, pampjpe_6d, jitter = calculate_metrics(
+                    ref_back, gen_back, "6d_transformed", i
+                )
+                concat_res["MPJPE_6d"]   = mpjpe_6d
+                concat_res["PAMPJPE_6d"] = pampjpe_6d
+                concat_res["jitter"]     = jitter
+            fold_concat_metrics.append(concat_res)
+
             # Full reference sequence for FID (extract_features will window it)
             real_raw.append(reference_np)
 
@@ -323,7 +339,7 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
 
         fold_metrics.append(res)
 
-    return fold_metrics, real_raw, gen_raw, ws
+    return fold_metrics, fold_concat_metrics, real_raw, gen_raw, ws
 
 
 # ── Summary ───────────────────────────────────────────────────────────────────
@@ -368,9 +384,10 @@ def main():
     if args_main.autoencoder_path:
         encoder, _ = load_encoder(args_main.autoencoder_path, device)
 
-    all_metrics = []
-    all_real_raw = []
-    all_gen_raw = []
+    all_metrics        = []
+    all_concat_metrics = []
+    all_real_raw       = []
+    all_gen_raw        = []
     window_len = None  # filled from first successfully evaluated fold
 
     for fold_idx in range(args_main.num_folds):
@@ -384,7 +401,7 @@ def main():
         print(f"{'='*60}")
 
         try:
-            fold_metrics, real_raw, gen_raw, fold_window_len = eval_fold(
+            fold_metrics, fold_concat_metrics, real_raw, gen_raw, fold_window_len = eval_fold(
                 fold_dir, args_main.dataset_path, encoder=encoder
             )
         except Exception as e:
@@ -394,18 +411,34 @@ def main():
         if window_len is None:
             window_len = fold_window_len
 
-        # Save per-fold metrics
+        # Save per-fold window metrics
         metrics_path = os.path.join(fold_dir, "eval_metrics.npy")
         np.save(metrics_path, fold_metrics)
-        print(f"  Saved fold metrics → {metrics_path}")
+        print(f"  Saved fold metrics (per-window) → {metrics_path}")
 
-        # Per-fold summary
+        # Save per-fold concat metrics
+        if fold_concat_metrics:
+            concat_metrics_path = os.path.join(fold_dir, "eval_metrics_concat.npy")
+            np.save(concat_metrics_path, fold_concat_metrics)
+            print(f"  Saved fold metrics (concat)     → {concat_metrics_path}")
+
+        # Per-fold summary — window metrics
+        print("  [per-window]")
         keys = [k for k in fold_metrics[0].keys() if k != "sample_id"]
         for key in keys:
             vals = [m[key] for m in fold_metrics if key in m]
-            print(f"  {key}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
+            print(f"    {key}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
+
+        # Per-fold summary — concat metrics
+        if fold_concat_metrics:
+            print("  [full concat]")
+            keys = [k for k in fold_concat_metrics[0].keys() if k != "sample_id"]
+            for key in keys:
+                vals = [m[key] for m in fold_concat_metrics if key in m]
+                print(f"    {key}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
 
         all_metrics.extend(fold_metrics)
+        all_concat_metrics.extend(fold_concat_metrics)
         all_real_raw.extend(real_raw)
         all_gen_raw.extend(gen_raw)
 
@@ -417,6 +450,13 @@ def main():
             keypointtype = json.load(f).get("keypointtype", "openpose")
 
     print_summary(all_metrics, keypointtype)
+
+    if all_concat_metrics:
+        print("\n--- Full-concat sequence metrics ---")
+        print_summary(all_concat_metrics, keypointtype)
+        concat_metrics_path = os.path.join(args_main.save_dir, "crossval_metrics_concat.npy")
+        np.save(concat_metrics_path, all_concat_metrics)
+        print(f"Concat metrics saved → {concat_metrics_path}")
 
     # ── Global FID ────────────────────────────────────────────────────────────
     if encoder is not None and all_real_raw and window_len is not None:
