@@ -73,7 +73,7 @@ def _preprocess_window(window):
 
 
 @torch.no_grad()
-def extract_features(motion_list, encoder, window_len, device, batch_size=64):
+def extract_features(motion_list, encoder, window_len, device, batch_size=32):
     """
     Encode a list of (T, D) numpy arrays into latent feature vectors.
 
@@ -287,6 +287,7 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
 
                 # Each generated window is one FID sample
                 gen_raw.append(gen_win)
+                real_raw.append(ref_win)
 
             # Average per-window metrics into a single sample-level result
             res = {"sample_id": i}
@@ -307,9 +308,6 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
                 concat_res["PAMPJPE_6d"] = pampjpe_6d
                 concat_res["jitter"]     = jitter
             fold_concat_metrics.append(concat_res)
-
-            # Full reference sequence for FID (extract_features will window it)
-            real_raw.append(reference_np)
 
         else:
             generated_motion = sample(
