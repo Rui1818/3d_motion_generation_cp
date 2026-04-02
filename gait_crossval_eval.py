@@ -20,7 +20,7 @@ from gait_generate import (
     calculate_metrics,
     transform_motion_back,
 )
-from data_loaders.dataloader3d import TestDataset, load_data, get_dataloader
+from data_loaders.dataloader3d import TestDataset, load_data, get_dataloader, sample_matching_startframe
 from model.motion_autoencoder import MotionAutoencoder
 from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 
@@ -210,7 +210,7 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
     model, diffusion = load_diffusion_model(args)
 
     # Load val data as TestDataset (same format as gait_generate.py)
-    motion_clean, motion_w_o, betas, actions = load_data(
+    motion_clean, motion_w_o, betas = load_data(
         dataset_path,
         split="test",
         keypointtype=args.keypointtype,
@@ -221,7 +221,6 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
         motion_clean,
         motion_w_o,
         betas=betas,
-        actions=actions,
         input_motion_length=args.input_motion_length,
     )
     dataloader = get_dataloader(val_dataset, "test", batch_size=1, num_workers=1)
@@ -237,9 +236,18 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
 
     ws = args.input_motion_length
 
+    match_dict = None
+    if use_sliding_window:
+        match_dict_path = (
+            "prepare_data/match_dict_window30_final.npy" if ws == 30
+            else "prepare_data/match_dict_window60_final.npy"
+        )
+        match_dict = np.load(match_dict_path, allow_pickle=True).item()
+
     for i, batch in enumerate(tqdm(dataloader, desc="  Evaluating")):
-        reference, condition, batch_betas, action_label = batch
-        action_label = action_label[0]  # unwrap batch dimension
+        reference, condition, batch_betas, action_label, match_key = batch
+        action_label = action_label[0]
+        match_key = match_key[0]
         condition = condition.to(device)
 
         if use_sliding_window:
@@ -251,6 +259,7 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
             gen_windows_np  = generated_motion_windows.squeeze(0).cpu().numpy()  # (n_windows*ws, D)
             generated_np    = generated_motion.squeeze(0).cpu().numpy()           # (T_concat, D)
             reference_np    = reference.squeeze(0).cpu().numpy()                  # (T, D)
+            reference_tensor = reference.squeeze(0)                               # (T, D) tensor
             total_frames    = condition.shape[1]
             start_indices   = _sliding_window_start_indices(total_frames, ws)
             n_windows       = len(start_indices)
@@ -260,16 +269,10 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
             for k in range(n_windows):
                 gen_win = gen_windows_np[k * ws : (k + 1) * ws]   # (ws, D)
 
-                # Slice the corresponding reference window; pad if at sequence end
-                ref_start = start_indices[k]
-                ref_end   = ref_start + ws
-                if ref_end > reference_np.shape[0]:
-                    ref_win  = reference_np[ref_start:]
-                    last_frame = ref_win[-1:] if len(ref_win) > 0 else reference_np[-1:]
-                    pad      = np.tile(last_frame, (ref_end - max(ref_start, reference_np.shape[0]), 1))
-                    ref_win  = np.concatenate([ref_win, pad], axis=0)
-                else:
-                    ref_win = reference_np[ref_start:ref_end]
+                # Select matching reference window via match_dict
+                ref_win = sample_matching_startframe(
+                    reference_tensor, match_dict, match_key, start_indices[k], ws
+                ).numpy()
 
                 win_res = calculate_metrics(ref_win, gen_win, args.keypointtype, k)
 

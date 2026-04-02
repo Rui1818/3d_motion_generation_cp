@@ -230,38 +230,38 @@ class TestDataset(Dataset):
         motion_clean,
         motion_without_orth,
         betas=None,
-        actions=None,
-        mean=0,
-        std=1,
         input_motion_length=196,
-        train_dataset_repeat_times=1,
-        no_normalization=False,
     ):
         self.dataset = dataset
-        self.mean = mean
-        self.std = std
         self.motion_clean = motion_clean
         self.motion_without_orth = motion_without_orth
-        self.train_dataset_repeat_times = train_dataset_repeat_times
-        self.no_normalization = no_normalization
         self.betas = betas
-        self.actions = actions
-
-        self.motion_clean = motion_clean
-        self.motion_without_orth = motion_without_orth
-
         self.input_motion_length = input_motion_length
 
-    def __len__(self):
-        return len(self.motion_clean) * self.train_dataset_repeat_times
+        # Mirror MotionDataset: enumerate all (c1_idx, c2_idx) pairs per action_key
+        self.data_pairs = []
+        for action_key in motion_clean.keys():
+            c1_takes = motion_clean[action_key]
+            c2_takes = motion_without_orth[action_key]
+            if "a3" in action_key and "gait_052" not in action_key and "gait_682" not in action_key and "gait_700" not in action_key:
+                for i in range(len(c1_takes)):
+                    for j in range(len(c2_takes)):
+                        if i % 2 == j % 2:
+                            self.data_pairs.append((action_key, i, j))
+            else:
+                for i in range(len(c1_takes)):
+                    for j in range(len(c2_takes)):
+                        self.data_pairs.append((action_key, i, j))
 
-    def inv_transform(self, data):
-        return data * self.std + self.mean
+    def __len__(self):
+        return len(self.data_pairs)
 
     def __getitem__(self, idx):
-        motion = self.motion_clean[idx % len(self.motion_clean)]
-        motion_w_o = self.motion_without_orth[idx % len(self.motion_clean)]
-        beta=self.betas[idx % len(self.motion_clean)] if self.betas is not None else torch.tensor(0.0)
+        action_key, c1_idx, c2_idx = self.data_pairs[idx]
+
+        motion = self.motion_clean[action_key][c1_idx]
+        motion_w_o = self.motion_without_orth[action_key][c2_idx]
+        beta = self.betas[action_key][c2_idx] if self.betas is not None else torch.tensor(0.0)
         seqlen_wo = motion_w_o.shape[0]
 
         if seqlen_wo <= self.input_motion_length:
@@ -271,21 +271,15 @@ class TestDataset(Dataset):
                 padding_wo = last_frame_wo.repeat(frames_to_add, 1)
                 motion_w_o = torch.cat([motion_w_o, padding_wo], dim=0)
         else:
-            # Truncate to input_motion_length if sequence is too long
             if self.input_motion_length >= 240:
                 motion_w_o = motion_w_o[:self.input_motion_length]
             else:
                 motion_w_o = motion_w_o
             motion_w_o = normalize_motion(motion_w_o)
 
-        """
-        # Normalization
-        if not self.no_normalization:
-            motion = (motion - self.mean) / (self.std + 1e-8)
-        """
-
-        action = self.actions[idx % len(self.motion_clean)] if self.actions is not None else ""
-        return motion.float(), motion_w_o.float(), beta, action
+        action = action_key.rsplit("_", 1)[-1]  # e.g. "gait_011_a1" -> "a1"
+        match_key = action_key + str(c2_idx) + str(c1_idx)
+        return motion.float(), motion_w_o.float(), beta, action, match_key
 
     
 
@@ -364,10 +358,9 @@ def load_data(motion_path, split, keypointtype, subjects=None, **kwargs):
             raise FileNotFoundError(f"No files found in directory: {motion_path}")
         return motion_clean, motion_w_o
     elif split == "test":
-        motion_clean = []
-        motion_w_o = []
-        betas = [] if keypointtype == "6d" else None
-        actions = []
+        motion_clean = {}
+        motion_w_o = {}
+        betas = {} if keypointtype == "6d" else None
 
         for patient in sorted(os.listdir(motion_path)):
             if subjects is not None and patient not in subjects:
@@ -379,28 +372,38 @@ def load_data(motion_path, split, keypointtype, subjects=None, **kwargs):
                     continue
 
                 action = take[2]  # e.g. "a1", "a2", "a3"
+                action_key = f"{patient}_{action}"
                 no_orth_path = take[0] + '_c2_' + "_".join(take[2:])
+
+                if action_key not in motion_clean:
+                    motion_clean[action_key] = []
+                    motion_w_o[action_key] = []
+                    if betas is not None:
+                        betas[action_key] = []
 
                 if keypointtype == "6d":
                     c1_path = os.path.join(patient_path, file, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")
                     c2_path = os.path.join(patient_path, no_orth_path, "split_subjects", "0", "fit-smplx", "smplx-params_cut.npz")
-                    #motion_clean.append(torch.tensor(np.load(c1_path), dtype=torch.float32))
-                    motion_clean,_ = load_6drotations(c1_path, motion_clean)
-                    motion_w_o, beta = load_6drotations(c2_path, motion_w_o)
-                    betas.append(beta)
+                    temp_c1 = []
+                    temp_c1, _ = load_6drotations(c1_path, temp_c1)
+                    motion_clean[action_key].append(temp_c1[0])
+                    temp_c2 = []
+                    temp_c2, beta = load_6drotations(c2_path, temp_c2)
+                    motion_w_o[action_key].append(temp_c2[0])
+                    betas[action_key].append(beta)
                 elif keypointtype == "openpose":
                     c1_path = os.path.join(patient_path, file, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
                     c2_path = os.path.join(patient_path, no_orth_path, "split_subjects", "0", "keypoints_3d", "smpl-keypoints-3d_cut.npy")
-                    motion_clean = load_pure_keypoints(c1_path, motion_clean, keypointtype)
-                    motion_w_o = load_pure_keypoints(c2_path, motion_w_o, keypointtype)
+                    temp_c1 = load_pure_keypoints(c1_path, [], keypointtype)
+                    motion_clean[action_key].append(temp_c1[0])
+                    temp_c2 = load_pure_keypoints(c2_path, [], keypointtype)
+                    motion_w_o[action_key].append(temp_c2[0])
                 elif keypointtype == "smpl":
                     raise NotImplementedError("SMPL keypoints not implemented for test split.")
                 else:
                     raise ValueError(f"Unknown keypoint type: {keypointtype}")
 
-                actions.append(action)
-
-        return motion_clean, motion_w_o, betas, actions
+        return motion_clean, motion_w_o, betas
 
 
 

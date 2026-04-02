@@ -38,7 +38,7 @@ def prepare_conditional_motion(file_path, input_motion_length, keypointtype):
     """
     Loads and preprocesses the conditional motion data from a given file path.
     """
-    clean, cond, betas, _ = load_data(file_path, split="test", keypointtype=keypointtype)
+    clean, cond, betas = load_data(file_path, split="test", keypointtype=keypointtype)
     dataset = TestDataset(
         "gait",
         clean,
@@ -418,7 +418,7 @@ def main():
         #referenceshape: (1, frames, 22, 3)| (1,frames,69)
         #condition shape: (1, frames, 135)| (1,frames,69)
         #betas shape: (1,frames, 10/11)|_
-        reference, condition, betas = batch
+        reference, condition, betas, _, _ = batch
         condition=condition.to(device)
         #print(reference.shape, condition.shape)  # shapes of the batch
         #print(f"Condition motion shape: {condition.shape}")
