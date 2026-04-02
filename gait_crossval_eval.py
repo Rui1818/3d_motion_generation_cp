@@ -441,8 +441,9 @@ def main():
             print(f"  Saved fold metrics (concat)     → {concat_metrics_path}")
 
         # Per-fold summary — window metrics
+        _skip = {"sample_id", "action"}
         print("  [per-window]")
-        keys = [k for k in fold_metrics[0].keys() if k != "sample_id"]
+        keys = [k for k in fold_metrics[0].keys() if k not in _skip]
         for key in keys:
             vals = [m[key] for m in fold_metrics if key in m]
             print(f"    {key}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
@@ -450,7 +451,7 @@ def main():
         # Per-fold summary — concat metrics
         if fold_concat_metrics:
             print("  [full concat]")
-            keys = [k for k in fold_concat_metrics[0].keys() if k != "sample_id"]
+            keys = [k for k in fold_concat_metrics[0].keys() if k not in _skip]
             for key in keys:
                 vals = [m[key] for m in fold_concat_metrics if key in m]
                 print(f"    {key}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
