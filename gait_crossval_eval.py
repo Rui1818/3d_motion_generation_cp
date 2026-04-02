@@ -210,7 +210,7 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
     model, diffusion = load_diffusion_model(args)
 
     # Load val data as TestDataset (same format as gait_generate.py)
-    motion_clean, motion_w_o, betas = load_data(
+    motion_clean, motion_w_o, betas, actions = load_data(
         dataset_path,
         split="test",
         keypointtype=args.keypointtype,
@@ -221,6 +221,7 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
         motion_clean,
         motion_w_o,
         betas=betas,
+        actions=actions,
         input_motion_length=args.input_motion_length,
     )
     dataloader = get_dataloader(val_dataset, "test", batch_size=1, num_workers=1)
@@ -237,7 +238,8 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
     ws = args.input_motion_length
 
     for i, batch in enumerate(tqdm(dataloader, desc="  Evaluating")):
-        reference, condition, batch_betas = batch
+        reference, condition, batch_betas, action_label = batch
+        action_label = action_label[0]  # unwrap batch dimension
         condition = condition.to(device)
 
         if use_sliding_window:
@@ -263,7 +265,8 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
                 ref_end   = ref_start + ws
                 if ref_end > reference_np.shape[0]:
                     ref_win  = reference_np[ref_start:]
-                    pad      = np.tile(ref_win[-1:], (ref_end - reference_np.shape[0], 1))
+                    last_frame = ref_win[-1:] if len(ref_win) > 0 else reference_np[-1:]
+                    pad      = np.tile(last_frame, (ref_end - max(ref_start, reference_np.shape[0]), 1))
                     ref_win  = np.concatenate([ref_win, pad], axis=0)
                 else:
                     ref_win = reference_np[ref_start:ref_end]
@@ -290,7 +293,7 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
                 real_raw.append(ref_win)
 
             # Average per-window metrics into a single sample-level result
-            res = {"sample_id": i}
+            res = {"sample_id": i, "action": action_label}
             for key in [key for key in window_metrics[0].keys() if key != "sample_id"]:
                 vals = [m[key] for m in window_metrics if key in m]
                 res[key] = float(np.mean(vals))
@@ -319,6 +322,7 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
             reference_np = reference.squeeze(0).cpu().numpy()
 
             res = calculate_metrics(reference_np, generated_np, args.keypointtype, i)
+            res["action"] = action_label
 
             if args.keypointtype == "6d":
                 gen_back, ref_back = transform_motion_back(
@@ -343,18 +347,31 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 def print_summary(all_metrics, keypointtype):
-    """Print mean ± std for each metric across all samples from all folds."""
+    """Print mean ± std for each metric across all samples from all folds, plus per-action breakdown."""
     if not all_metrics:
         print("No metrics to summarize.")
         return
 
-    keys = [k for k in all_metrics[0].keys() if k != "sample_id"]
+    skip = {"sample_id", "action"}
+    keys = [k for k in all_metrics[0].keys() if k not in skip]
     print("\n=== Cross-Validation Metrics Summary ===")
     print(f"Total samples: {len(all_metrics)}")
     for key in keys:
         vals = [m[key] for m in all_metrics if key in m]
         print(f"  {key:30s}: {np.mean(vals):.4f} ± {np.std(vals):.4f}  "
               f"[min={np.min(vals):.4f}, max={np.max(vals):.4f}]")
+
+    # Per-action breakdown
+    action_labels = sorted(set(m["action"] for m in all_metrics if "action" in m))
+    if action_labels:
+        print("\n--- Per-action breakdown ---")
+        for action in action_labels:
+            subset = [m for m in all_metrics if m.get("action") == action]
+            print(f"\n  [Action: {action}]  n={len(subset)}")
+            for key in keys:
+                vals = [m[key] for m in subset if key in m]
+                if vals:
+                    print(f"    {key:30s}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────

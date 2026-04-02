@@ -103,7 +103,6 @@ def compute_dct_stats(dataset):
     all_dct = torch.stack(all_dct, dim=0)  # (N, T, D)
     dct_mean = all_dct.mean(dim=0)  # (T, D)
     dct_std = all_dct.std(dim=0)    # (T, D)
-    # Clamp std to avoid amplifying near-constant frequency components
     dct_std = dct_std.clamp(min=0.01)
     return dct_mean, dct_std
 
@@ -231,6 +230,7 @@ class TestDataset(Dataset):
         motion_clean,
         motion_without_orth,
         betas=None,
+        actions=None,
         mean=0,
         std=1,
         input_motion_length=196,
@@ -245,6 +245,7 @@ class TestDataset(Dataset):
         self.train_dataset_repeat_times = train_dataset_repeat_times
         self.no_normalization = no_normalization
         self.betas = betas
+        self.actions = actions
 
         self.motion_clean = motion_clean
         self.motion_without_orth = motion_without_orth
@@ -283,7 +284,8 @@ class TestDataset(Dataset):
             motion = (motion - self.mean) / (self.std + 1e-8)
         """
 
-        return motion.float(), motion_w_o.float(), beta
+        action = self.actions[idx % len(self.motion_clean)] if self.actions is not None else ""
+        return motion.float(), motion_w_o.float(), beta, action
 
     
 
@@ -365,6 +367,7 @@ def load_data(motion_path, split, keypointtype, subjects=None, **kwargs):
         motion_clean = []
         motion_w_o = []
         betas = [] if keypointtype == "6d" else None
+        actions = []
 
         for patient in sorted(os.listdir(motion_path)):
             if subjects is not None and patient not in subjects:
@@ -375,6 +378,7 @@ def load_data(motion_path, split, keypointtype, subjects=None, **kwargs):
                 if take[1] != 'c1':
                     continue
 
+                action = take[2]  # e.g. "a1", "a2", "a3"
                 no_orth_path = take[0] + '_c2_' + "_".join(take[2:])
 
                 if keypointtype == "6d":
@@ -394,7 +398,9 @@ def load_data(motion_path, split, keypointtype, subjects=None, **kwargs):
                 else:
                     raise ValueError(f"Unknown keypoint type: {keypointtype}")
 
-        return motion_clean, motion_w_o, betas
+                actions.append(action)
+
+        return motion_clean, motion_w_o, betas, actions
 
 
 

@@ -17,6 +17,10 @@ def load_model_wo_clip(model, state_dict):
         missing_keys, unexpected_keys = model.load_state_dict(
             state_dict_new, strict=False
         )
+    if len(unexpected_keys) != 0:
+        print(f"Unexpected keys: {unexpected_keys}")
+    if not all([k.startswith("clip_model.") for k in missing_keys]):
+        print(f"Unexpected missing keys: {[k for k in missing_keys if not k.startswith('clip_model.')]}")
     assert len(unexpected_keys) == 0
     assert all([k.startswith("clip_model.") for k in missing_keys])
 

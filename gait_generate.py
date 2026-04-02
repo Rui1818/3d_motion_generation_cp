@@ -38,7 +38,7 @@ def prepare_conditional_motion(file_path, input_motion_length, keypointtype):
     """
     Loads and preprocesses the conditional motion data from a given file path.
     """
-    clean, cond, betas = load_data(file_path, split="test", keypointtype=keypointtype)
+    clean, cond, betas, _ = load_data(file_path, split="test", keypointtype=keypointtype)
     dataset = TestDataset(
         "gait",
         clean,
