@@ -171,9 +171,20 @@ def find_latest_checkpoint(fold_dir):
     return os.path.join(fold_dir, ckpts[-1])
 
 
-def eval_fold(fold_dir, dataset_path, encoder=None):
+def find_best_checkpoint(fold_dir):
+    """Return the path to best_model.pt in fold_dir."""
+    path = os.path.join(fold_dir, "best_model.pt")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"best_model.pt not found in {fold_dir}")
+    return path
+
+
+def eval_fold(fold_dir, dataset_path, encoder=None, checkpoint_type="latest"):
     """
     Evaluate one fold: load model, run generation on val subjects, return metrics.
+
+    Args:
+        checkpoint_type: "latest" (highest-step modelN.pt) or "best" (best_model.pt)
 
     Returns:
         fold_metrics  : list of per-sample metric dicts
@@ -193,8 +204,11 @@ def eval_fold(fold_dir, dataset_path, encoder=None):
 
     # Build a minimal args namespace from the saved config
     args = argparse.Namespace(**saved)
-    args.model_path = find_latest_checkpoint(fold_dir)
-    print(f"  Using checkpoint: {args.model_path}")
+    if checkpoint_type == "best":
+        args.model_path = find_best_checkpoint(fold_dir)
+    else:
+        args.model_path = find_latest_checkpoint(fold_dir)
+    print(f"  Using checkpoint ({checkpoint_type}): {args.model_path}")
 
     # Load DCT stats if needed
     dct_stats = None
@@ -389,6 +403,9 @@ def main():
     parser.add_argument("--seed", default=10, type=int)
     parser.add_argument("--autoencoder_path", default=None, type=str,
                         help="Path to best_autoencoder.pt for FID computation (optional).")
+    parser.add_argument("--checkpoint", default="both", choices=["latest", "best", "both"],
+                        help="Which checkpoint to evaluate: latest (highest-step modelN.pt), "
+                             "best (best_model.pt), or both.")
     args_main = parser.parse_args()
 
     random.seed(args_main.seed)
@@ -402,11 +419,13 @@ def main():
     if args_main.autoencoder_path:
         encoder, _ = load_encoder(args_main.autoencoder_path, device)
 
-    all_metrics        = []
-    all_concat_metrics = []
-    all_real_raw       = []
-    all_gen_raw        = []
-    window_len = None  # filled from first successfully evaluated fold
+    checkpoint_types = (
+        ["latest", "best"] if args_main.checkpoint == "both" else [args_main.checkpoint]
+    )
+
+    # Results keyed by checkpoint_type
+    results = {ct: {"metrics": [], "concat_metrics": [], "real_raw": [], "gen_raw": [], "window_len": None}
+               for ct in checkpoint_types}
 
     for fold_idx in range(args_main.num_folds):
         fold_dir = os.path.join(args_main.save_dir, f"fold_{fold_idx}")
@@ -414,52 +433,52 @@ def main():
             print(f"Fold {fold_idx}: directory not found, skipping.")
             continue
 
-        print(f"\n{'='*60}")
-        print(f"FOLD {fold_idx + 1}/{args_main.num_folds}  ({fold_dir})")
-        print(f"{'='*60}")
+        for ct in checkpoint_types:
+            print(f"\n{'='*60}")
+            print(f"FOLD {fold_idx + 1}/{args_main.num_folds}  [{ct}]  ({fold_dir})")
+            print(f"{'='*60}")
 
-        try:
-            fold_metrics, fold_concat_metrics, real_raw, gen_raw, fold_window_len = eval_fold(
-                fold_dir, args_main.dataset_path, encoder=encoder
-            )
-        except Exception as e:
-            print(f"  ERROR evaluating fold {fold_idx}: {e}")
-            continue
+            try:
+                fold_metrics, fold_concat_metrics, real_raw, gen_raw, fold_window_len = eval_fold(
+                    fold_dir, args_main.dataset_path, encoder=encoder, checkpoint_type=ct
+                )
+            except Exception as e:
+                print(f"  ERROR evaluating fold {fold_idx} [{ct}]: {e}")
+                continue
 
-        if window_len is None:
-            window_len = fold_window_len
+            r = results[ct]
+            if r["window_len"] is None:
+                r["window_len"] = fold_window_len
 
-        # Save per-fold window metrics
-        metrics_path = os.path.join(fold_dir, "eval_metrics.npy")
-        np.save(metrics_path, fold_metrics)
-        print(f"  Saved fold metrics (per-window) → {metrics_path}")
+            # Save per-fold window metrics
+            suffix = f"_{ct}" if args_main.checkpoint == "both" else ""
+            metrics_path = os.path.join(fold_dir, f"eval_metrics{suffix}.npy")
+            np.save(metrics_path, fold_metrics)
+            print(f"  Saved fold metrics (per-window) → {metrics_path}")
 
-        # Save per-fold concat metrics
-        if fold_concat_metrics:
-            concat_metrics_path = os.path.join(fold_dir, "eval_metrics_concat.npy")
-            np.save(concat_metrics_path, fold_concat_metrics)
-            print(f"  Saved fold metrics (concat)     → {concat_metrics_path}")
+            if fold_concat_metrics:
+                concat_metrics_path = os.path.join(fold_dir, f"eval_metrics_concat{suffix}.npy")
+                np.save(concat_metrics_path, fold_concat_metrics)
+                print(f"  Saved fold metrics (concat)     → {concat_metrics_path}")
 
-        # Per-fold summary — window metrics
-        _skip = {"sample_id", "action"}
-        print("  [per-window]")
-        keys = [k for k in fold_metrics[0].keys() if k not in _skip]
-        for key in keys:
-            vals = [m[key] for m in fold_metrics if key in m]
-            print(f"    {key}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
-
-        # Per-fold summary — concat metrics
-        if fold_concat_metrics:
-            print("  [full concat]")
-            keys = [k for k in fold_concat_metrics[0].keys() if k not in _skip]
+            _skip = {"sample_id", "action"}
+            print("  [per-window]")
+            keys = [k for k in fold_metrics[0].keys() if k not in _skip]
             for key in keys:
-                vals = [m[key] for m in fold_concat_metrics if key in m]
+                vals = [m[key] for m in fold_metrics if key in m]
                 print(f"    {key}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
 
-        all_metrics.extend(fold_metrics)
-        all_concat_metrics.extend(fold_concat_metrics)
-        all_real_raw.extend(real_raw)
-        all_gen_raw.extend(gen_raw)
+            if fold_concat_metrics:
+                print("  [full concat]")
+                keys = [k for k in fold_concat_metrics[0].keys() if k not in _skip]
+                for key in keys:
+                    vals = [m[key] for m in fold_concat_metrics if key in m]
+                    print(f"    {key}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
+
+            r["metrics"].extend(fold_metrics)
+            r["concat_metrics"].extend(fold_concat_metrics)
+            r["real_raw"].extend(real_raw)
+            r["gen_raw"].extend(gen_raw)
 
     # Detect keypointtype from the first fold's args.json
     first_fold_args_path = os.path.join(args_main.save_dir, "fold_0", "args.json")
@@ -468,35 +487,42 @@ def main():
         with open(first_fold_args_path) as f:
             keypointtype = json.load(f).get("keypointtype", "openpose")
 
-    print_summary(all_metrics, keypointtype)
+    for ct in checkpoint_types:
+        r = results[ct]
+        suffix = f"_{ct}" if args_main.checkpoint == "both" else ""
+        label  = f" [{ct}]" if args_main.checkpoint == "both" else ""
 
-    if all_concat_metrics:
-        print("\n--- Full-concat sequence metrics ---")
-        print_summary(all_concat_metrics, keypointtype)
-        concat_metrics_path = os.path.join(args_main.save_dir, "crossval_metrics_concat.npy")
-        np.save(concat_metrics_path, all_concat_metrics)
-        print(f"Concat metrics saved → {concat_metrics_path}")
+        print(f"\n{'#'*60}")
+        print(f"CHECKPOINT: {ct.upper()}")
+        print(f"{'#'*60}")
+        print_summary(r["metrics"], keypointtype)
 
-    # ── Global FID ────────────────────────────────────────────────────────────
-    if encoder is not None and all_real_raw and window_len is not None:
-        print(f"\nExtracting FID features (window_len={window_len})...")
-        real_feats = extract_features(all_real_raw, encoder, window_len, device)
-        gen_feats  = extract_features(all_gen_raw,  encoder, window_len, device)
-        print(f"  Real windows: {len(real_feats)}  |  Gen windows: {len(gen_feats)}")
+        if r["concat_metrics"]:
+            print(f"\n--- Full-concat sequence metrics{label} ---")
+            print_summary(r["concat_metrics"], keypointtype)
+            concat_metrics_path = os.path.join(args_main.save_dir, f"crossval_metrics_concat{suffix}.npy")
+            np.save(concat_metrics_path, r["concat_metrics"])
+            print(f"Concat metrics saved → {concat_metrics_path}")
 
-        fid = compute_fid(real_feats, gen_feats)
-        print(f"\n  FID (global, all folds): {fid:.4f}")
+        # ── Global FID ────────────────────────────────────────────────────────
+        if encoder is not None and r["real_raw"] and r["window_len"] is not None:
+            print(f"\nExtracting FID features (window_len={r['window_len']})...")
+            real_feats = extract_features(r["real_raw"], encoder, r["window_len"], device)
+            gen_feats  = extract_features(r["gen_raw"],  encoder, r["window_len"], device)
+            print(f"  Real windows: {len(real_feats)}  |  Gen windows: {len(gen_feats)}")
 
-        # Append FID to the saved all-metrics file so it is recorded
-        fid_record = {"FID_global": fid, "real_windows": len(real_feats), "gen_windows": len(gen_feats)}
-        fid_path = os.path.join(args_main.save_dir, "fid_result.npy")
-        np.save(fid_path, fid_record)
-        print(f"  FID result saved → {fid_path}")
+            fid = compute_fid(real_feats, gen_feats)
+            print(f"\n  FID (global, all folds){label}: {fid:.4f}")
 
-    # Save all per-sample metrics
-    all_metrics_path = os.path.join(args_main.save_dir, "crossval_metrics.npy")
-    np.save(all_metrics_path, all_metrics)
-    print(f"\nAll metrics saved → {all_metrics_path}")
+            fid_record = {"FID_global": fid, "real_windows": len(real_feats), "gen_windows": len(gen_feats)}
+            fid_path = os.path.join(args_main.save_dir, f"fid_result{suffix}.npy")
+            np.save(fid_path, fid_record)
+            print(f"  FID result saved → {fid_path}")
+
+        # Save all per-sample metrics
+        all_metrics_path = os.path.join(args_main.save_dir, f"crossval_metrics{suffix}.npy")
+        np.save(all_metrics_path, r["metrics"])
+        print(f"\nAll metrics saved → {all_metrics_path}")
 
 
 if __name__ == "__main__":
