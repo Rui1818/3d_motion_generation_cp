@@ -73,6 +73,9 @@ def plot_crossval_loss(
     out_path="crossval_loss.pdf",
     dpi=300,
     separate=False,
+    log_scale=False,
+    ymin=None,
+    ymax=None,
 ):
     """
     Args:
@@ -140,6 +143,12 @@ def plot_crossval_loss(
 
     config_name = os.path.basename(save_dir)
 
+    def _apply_axis(ax):
+        if log_scale:
+            ax.set_yscale("log")
+        if ymin is not None or ymax is not None:
+            ax.set_ylim(bottom=ymin, top=ymax)
+
     def _save_single(mean, std, label, color, title, out):
         fig, ax = plt.subplots(figsize=(5.5, 3.5))
         ax.plot(grid, mean, color=color, linewidth=1.5, label=f"{label} (mean)")
@@ -147,6 +156,7 @@ def plot_crossval_loss(
         ax.set_xlabel("Training step")
         ax.set_ylabel("Loss")
         ax.set_title(title)
+        _apply_axis(ax)
         ax.legend(framealpha=0.9)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
@@ -176,6 +186,7 @@ def plot_crossval_loss(
         ax.set_xlabel("Training step")
         ax.set_ylabel("Loss")
         ax.set_title(f"5-fold cross-validation loss — {config_name}")
+        _apply_axis(ax)
         ax.legend(framealpha=0.9)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
@@ -199,6 +210,9 @@ if __name__ == "__main__":
     parser.add_argument("--out",          default="crossval_loss.pdf")
     parser.add_argument("--dpi",          default=300, type=int)
     parser.add_argument("--separate",     action="store_true",      help="Save train and val as separate files")
+    parser.add_argument("--log",          action="store_true",      help="Use log scale on y-axis")
+    parser.add_argument("--ymin",         default=None, type=float, help="Y-axis lower limit (e.g. 0.01)")
+    parser.add_argument("--ymax",         default=None, type=float, help="Y-axis upper limit (e.g. 1.0)")
     args = parser.parse_args()
 
     plot_crossval_loss(
@@ -211,4 +225,7 @@ if __name__ == "__main__":
         out_path     = args.out,
         dpi          = args.dpi,
         separate     = args.separate,
+        log_scale    = args.log,
+        ymin         = args.ymin,
+        ymax         = args.ymax,
     )
