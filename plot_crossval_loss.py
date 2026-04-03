@@ -77,6 +77,7 @@ def plot_crossval_loss(
     ymin=None,
     ymax=None,
     std_scale=1.0,
+    steps_per_epoch=1500,
 ):
     """
     Args:
