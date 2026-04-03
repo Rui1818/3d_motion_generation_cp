@@ -17,8 +17,8 @@ class MetaModel(nn.Module):
         **kargs,
     ):
         super().__init__()
-        #self.arch = DiffTransformer
-        self.arch = DiffMLP
+        self.arch = DiffTransformer
+        #self.arch = DiffMLP
         self.dataset = dataset
 
         self.input_feats = nfeats

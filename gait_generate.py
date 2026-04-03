@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # Set the GPU device to use (change as needed)
 import random
 from tslearn.metrics import dtw_path_from_metric
 import numpy as np
@@ -122,7 +122,7 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, dct_st
         sliding_window_step = 40
     elif window_size==30:
         sliding_window_step = 20
-    else:
+    elif window_size<240:
         raise ValueError("Unsupported window size for sliding window generation.")
 
 

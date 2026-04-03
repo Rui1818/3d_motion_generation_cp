@@ -5,8 +5,8 @@
 
 DATASET_PATH="mydataset"
 KEYPOINTTYPE="6d"       # choices: 6d | openpose | smpl
-EPOCHS=200
-BASE_SAVE="./checkpoints/test"
+EPOCHS=100
+BASE_SAVE="./checkpoints/6d"
 
 run() {
     local window=$1
@@ -45,9 +45,15 @@ run() {
 
 
 
-#run            60      64     256     0.1      1    3e-5    6d    1e-4    32
-#run            60      64     256     0.05      1    3e-5    6d    1e-5    32
 run            60      64     256     0.1      1    3e-5    6d    1e-4    32
+run            60      64     256     0.05      1    3e-5    6d    1e-5    32
+run            60      64     256     0.1      1    3e-5    6d    1e-4    32
+run            60     128     512     0.1      1    1e-4    6d  1e-4    32
+
+run            30      64     128     0.1      1    1e-4    6d  1e-4    32
+run            30      64     256     0.1      1    3e-5    6d  1e-4    32
+run            30     128     512     0.1      1    1e-4    6d  1e-4    32
+run            30     128     256     0.1      1    3e-4    6d  1e-4    32
 
 
 
@@ -61,10 +67,7 @@ run            60      64     256     0.1      1    3e-5    6d    1e-4    32
 #run            60     128     256     0.1      4    1e-4    openpose
 #run            60      64     256     0.1      4    1e-4    openpose
 
-#run            30      64     128     0.1      4    1e-4    6d
-#run            30      64     256     0.1      4    1e-4    6d
-#run            30     128     512     0.1      10    1e-4    6d
-#run            30     128     256     0.1      10    3e-4    6d
+
 
 #run            30     128     256     0.1      10    1e-4    openpose
 #run            30      64     256     0.1      10    1e-4    openpose

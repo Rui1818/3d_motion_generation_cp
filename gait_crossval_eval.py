@@ -22,7 +22,6 @@ from gait_generate import (
 )
 from data_loaders.dataloader3d import TestDataset, load_data, get_dataloader, sample_matching_startframe
 from model.motion_autoencoder import MotionAutoencoder
-from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 
 # Must match train_autoencoder.py
 _TRANSL_SCALE = 3.0
@@ -239,10 +238,8 @@ def eval_fold(fold_dir, dataset_path, encoder=None, checkpoint_type="latest"):
     )
     dataloader = get_dataloader(val_dataset, "test", batch_size=1, num_workers=1)
     print(f"  Val samples: {len(val_dataset)}")
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     use_sliding_window = args.input_motion_length < 240
-
     fold_metrics        = []
     fold_concat_metrics = []  # full-concat metrics (sliding window only)
     real_raw = []   # full reference sequences; extract_features will window them for FID
