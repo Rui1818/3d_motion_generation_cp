@@ -77,7 +77,7 @@ def plot_crossval_loss(
     ymin=None,
     ymax=None,
     std_scale=1.0,
-    steps_per_epoch=1500,
+    max_epochs=1500,
 ):
     """
     Args:
@@ -115,12 +115,13 @@ def plot_crossval_loss(
     if not train_curves:
         raise RuntimeError("No training curves found. Check save_dir and tag names.")
 
-    # Common step grid from 0 to max shared step, converted to epochs
+    # Common step grid rescaled so the last step = max_epochs
     max_step = min(all_steps)
-    grid = np.linspace(0, max_step, n_grid) / steps_per_epoch
+    grid = np.linspace(0, max_epochs, n_grid)  # epoch axis
 
     def aggregate(curves):
-        interped = np.stack([interpolate_to_grid(s / steps_per_epoch, v, grid) for s, v in curves])
+        # rescale each fold's steps to the same [0, max_epochs] range
+        interped = np.stack([interpolate_to_grid(s * (max_epochs / max_step), v, grid) for s, v in curves])
         if smooth_window > 1:
             interped = uniform_filter1d(interped, size=smooth_window, axis=1)
         return interped.mean(0), interped.std(0)
@@ -209,14 +210,14 @@ if __name__ == "__main__":
     parser.add_argument("--val_tag",      default="val_loss",        help="TensorBoard tag for val loss")
     parser.add_argument("--smooth",       default=1,   type=int,     help="Smoothing window (1=none, try 20-50)")
     parser.add_argument("--n_grid",       default=500, type=int,     help="Interpolation grid points")
-    parser.add_argument("--out",          default="crossval_loss.pdf")
+    parser.add_argument("--out",          default="crossval_loss.png")
     parser.add_argument("--dpi",          default=300, type=int)
     parser.add_argument("--separate",     action="store_true",      help="Save train and val as separate files")
     parser.add_argument("--log",          action="store_true",      help="Use log scale on y-axis")
     parser.add_argument("--ymin",         default=None, type=float, help="Y-axis lower limit (e.g. 0.01)")
     parser.add_argument("--ymax",         default=None, type=float, help="Y-axis upper limit (e.g. 1.0)")
-    parser.add_argument("--std_scale",      default=1.0,   type=float, help="Multiplier for the std band (e.g. 0.5, 1, 2)")
-    parser.add_argument("--steps_per_epoch", default=1500, type=int,   help="Steps per epoch for x-axis conversion (default 1500)")
+    parser.add_argument("--std_scale",      default=0.7,   type=float, help="Multiplier for the std band (e.g. 0.5, 1, 2)")
+    parser.add_argument("--max_epochs",    default=1500, type=int,   help="Value shown at the last step on the x-axis (default 1500)")
     args = parser.parse_args()
 
     plot_crossval_loss(
@@ -233,5 +234,5 @@ if __name__ == "__main__":
         ymin         = args.ymin,
         ymax         = args.ymax,
         std_scale      = args.std_scale,
-        steps_per_epoch= args.steps_per_epoch,
+        max_epochs     = args.max_epochs,
     )
