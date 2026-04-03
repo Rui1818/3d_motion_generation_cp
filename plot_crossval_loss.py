@@ -115,12 +115,12 @@ def plot_crossval_loss(
     if not train_curves:
         raise RuntimeError("No training curves found. Check save_dir and tag names.")
 
-    # Common step grid from 0 to max shared step
+    # Common step grid from 0 to max shared step, converted to epochs
     max_step = min(all_steps)
-    grid = np.linspace(0, max_step, n_grid)
+    grid = np.linspace(0, max_step, n_grid) / steps_per_epoch
 
     def aggregate(curves):
-        interped = np.stack([interpolate_to_grid(s, v, grid) for s, v in curves])
+        interped = np.stack([interpolate_to_grid(s / steps_per_epoch, v, grid) for s, v in curves])
         if smooth_window > 1:
             interped = uniform_filter1d(interped, size=smooth_window, axis=1)
         return interped.mean(0), interped.std(0)
@@ -155,7 +155,7 @@ def plot_crossval_loss(
         fig, ax = plt.subplots(figsize=(5.5, 3.5))
         ax.plot(grid, mean, color=color, linewidth=1.5, label=f"{label} (mean)")
         ax.fill_between(grid, mean - std_scale * std, mean + std_scale * std, color=color, alpha=0.20, label=f"±{std_scale} std")
-        ax.set_xlabel("Training step")
+        ax.set_xlabel("Epoch")
         ax.set_ylabel("Loss")
         ax.set_title(title)
         _apply_axis(ax)
@@ -185,7 +185,7 @@ def plot_crossval_loss(
             ax.plot(grid, val_mean, color="#d6604d", linewidth=1.5, label="Val loss (mean)")
             ax.fill_between(grid, val_mean - std_scale * val_std, val_mean + std_scale * val_std,
                             color="#d6604d", alpha=0.20, label=f"Val ±{std_scale} std")
-        ax.set_xlabel("Training step")
+        ax.set_xlabel("Epoch")
         ax.set_ylabel("Loss")
         ax.set_title(f"5-fold cross-validation loss — {config_name}")
         _apply_axis(ax)
@@ -215,7 +215,8 @@ if __name__ == "__main__":
     parser.add_argument("--log",          action="store_true",      help="Use log scale on y-axis")
     parser.add_argument("--ymin",         default=None, type=float, help="Y-axis lower limit (e.g. 0.01)")
     parser.add_argument("--ymax",         default=None, type=float, help="Y-axis upper limit (e.g. 1.0)")
-    parser.add_argument("--std_scale",    default=1.0,  type=float, help="Multiplier for the std band (e.g. 0.5, 1, 2)")
+    parser.add_argument("--std_scale",      default=1.0,   type=float, help="Multiplier for the std band (e.g. 0.5, 1, 2)")
+    parser.add_argument("--steps_per_epoch", default=1500, type=int,   help="Steps per epoch for x-axis conversion (default 1500)")
     args = parser.parse_args()
 
     plot_crossval_loss(
@@ -231,5 +232,6 @@ if __name__ == "__main__":
         log_scale    = args.log,
         ymin         = args.ymin,
         ymax         = args.ymax,
-        std_scale    = args.std_scale,
+        std_scale      = args.std_scale,
+        steps_per_epoch= args.steps_per_epoch,
     )
