@@ -1,6 +1,10 @@
+import glob
 import os
+
 import numpy as np
+from PIL import Image
 from aitviewer.configuration import CONFIG as C
+from aitviewer.headless import HeadlessRenderer
 from aitviewer.models.smpl import SMPLLayer
 from aitviewer.renderables.smpl import SMPLSequence
 from aitviewer.viewer import Viewer
@@ -14,15 +18,49 @@ import torch
 
 class BODY25Skeletons(Skeletons):
     SKELETON = np.asarray([
-        (-1, 0), (0, 8), (9, 10), (10, 11), (8, 9), (8, 12),
-        (12, 13), (13, 14), (0, 2), (2, 3), (3, 4), (2, 17),
-        (0, 5), (5, 6), (6, 7), (5, 18), (0, 15),
+        (-1, 0), (0, 1), (1, 8),(1,2), (1,5), (9, 10), (10, 11), (8, 9), (8, 12),
+        (12, 13), (13, 14), (2, 3), (3, 4),
+        (5, 6), (6, 7), (0, 15),
         (0, 16), (15, 17), (16, 18), (14, 19), (19, 20), (14, 21),
         (11, 22), (22, 23), (11, 24)
     ])
 
     def __init__(self, joints, **kwargs):
-        kwargs['color'] = (0.5, 0.0, 0.0, 1.0)
+        kwargs.setdefault('color', (0.5, 0.0, 0.0, 1.0))
+        super().__init__(joints, __class__.SKELETON, **kwargs)
+
+class SMPLSkeletons(Skeletons):
+    """
+    Skeleton definition for the first 22 SMPL joints (Pelvis to Wrists).
+    Format: (Parent, Child)
+    """
+    SKELETON = np.asarray([
+        (-1, 0),  # Pelvis (Root)
+        (0, 1),   # Pelvis -> L_Hip
+        (0, 2),   # Pelvis -> R_Hip
+        (0, 3),   # Pelvis -> Spine1 (Waist)
+        (1, 4),   # L_Hip -> L_Knee
+        (2, 5),   # R_Hip -> R_Knee
+        (3, 6),   # Spine1 -> Spine2 (Back)
+        (4, 7),   # L_Knee -> L_Ankle
+        (5, 8),   # R_Knee -> R_Ankle
+        (6, 9),   # Spine2 -> Spine3 (Chest)
+        (7, 10),  # L_Ankle -> L_Foot
+        (8, 11),  # R_Ankle -> R_Foot
+        (9, 12),  # Spine3 -> Neck
+        (9, 13),  # Spine3 -> L_Collar
+        (9, 14),  # Spine3 -> R_Collar
+        (12, 15), # Neck -> Head
+        (13, 16), # L_Collar -> L_Shoulder
+        (14, 17), # R_Collar -> R_Shoulder
+        (16, 18), # L_Shoulder -> L_Elbow
+        (17, 19), # R_Shoulder -> R_Elbow
+        (18, 20), # L_Elbow -> L_Wrist
+        (19, 21)  # R_Elbow -> R_Wrist
+    ])
+
+    def __init__(self, joints, **kwargs):
+        kwargs.setdefault('color', (0.5, 0.0, 0.0, 1.0))
         super().__init__(joints, __class__.SKELETON, **kwargs)
 
 def subtract_root(data):
@@ -269,6 +307,217 @@ def visualize_gait_batch(root):
     v.run()
     return
 
+def repair_data(data):
+    if(data.shape[1]==23):
+        midhip = (data[:,7,:]+data[:, 10, :])/2
+        neck= (data[:,1,:]+data[:, 4, :])/2
+        data=np.insert(data, 7, midhip, axis=1)
+        data=np.insert(data, 1, neck, axis=1)
+    elif(data.shape[1]==25): 
+        midhip = (data[:,8,:]+data[:, 9, :])/2
+        neck= (data[:,2,:]+data[:, 5, :])/2
+        data[:,8,:]=midhip
+        data[:,1,:]=neck
+    return data
+
+def add_keypoints_result(data, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
+    # Load keypoints
+    keypoints = data
+    keypoints=keypoints[..., :3]
+
+    keypoints_pc = PointClouds(
+        keypoints,
+        name=thisname,
+        point_size=3.0,
+        color=color
+    )
+
+    if keypoints.shape[1]==25:
+        skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
+        viewer.scene.add(skeleton)
+    elif keypoints.shape[1]==22:
+        skeleton=SMPLSkeletons(keypoints, name=thisname, color=color)
+        viewer.scene.add(skeleton)
+    elif keypoints.shape[1]==23:
+        keypoints=repair_data(keypoints)
+        skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
+        viewer.scene.add(skeleton)
+    else:
+        viewer.scene.add(keypoints_pc)
+    return
+
+def visualize_result(path):
+
+    v=Viewer()
+    add_keypoints_result(np.load(path), v, "result")
+    v.run()
+
+def capture_motion_frames(
+    output_dir,
+    smplseq_path=None,
+    keypoints_path=None,
+    frame_indices=None,
+    n_frames=None,
+    size=(1920, 1080),
+    prefix="frame",
+    transparent=False,
+):
+    """
+    Render individual motion frames to PNG images using the headless renderer.
+
+    :param output_dir: Directory where the PNG images are saved.
+    :param smplseq_path: Path to an .npz file with SMPL-X parameters (optional).
+    :param keypoints_path: Path to a .npy keypoints file (optional).
+    :param frame_indices: List of specific frame indices to capture. If None, uses n_frames
+      evenly spaced frames (or all frames if n_frames is also None).
+    :param n_frames: Number of evenly spaced frames to capture. Ignored when frame_indices is given.
+    :param size: Render resolution as (width, height).
+    :param prefix: Filename prefix for saved images.
+    :param transparent: Render with transparent background (required for overlay_motion_frames).
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    v = HeadlessRenderer(size=size)
+    C.smplx_models = "smpl_models/"
+
+    if smplseq_path is not None:
+        load_smpl_sequence(smplseq_path, v)
+    if keypoints_path is not None:
+        add_keypoints_result(np.load(keypoints_path), v, "Keypoints")
+
+    v._init_scene()
+    v.scene.camera.load_cam()
+    total_frames = v.scene.n_frames
+
+    if frame_indices is None:
+        if n_frames is None:
+            frame_indices = list(range(total_frames))
+        else:
+            frame_indices = [int(round(i)) for i in np.linspace(0, total_frames - 1, n_frames)]
+
+    print(f"Capturing {len(frame_indices)} frames to '{output_dir}' ...")
+    for idx in frame_indices:
+        v.scene.current_frame_id = idx
+        out_path = os.path.join(output_dir, f"{prefix}_{idx:04d}.png")
+        v.export_frame(out_path, transparent_background=transparent)
+        print(f"  Saved {out_path}")
+    print("Done.")
+
+def overlay_motion_frames(
+    frame_dir,
+    output_path,
+    prefix="frame",
+    bg_color=(255, 255, 255),
+    colormap=None,
+    alpha=0.7,
+):
+    """
+    Overlay all captured frames onto a single image to show the full motion trail.
+
+    Frames must have been captured with transparent=True so the background is
+    transparent and only the skeleton/mesh is visible.
+
+    :param frame_dir: Directory containing the transparent PNG frames.
+    :param output_path: Output file path (e.g. "motion_overlay.png").
+    :param prefix: Filename prefix used during capture.
+    :param bg_color: Background color as (R, G, B).
+    :param colormap: Optional matplotlib colormap name (e.g. "cool", "plasma", "viridis")
+      to tint frames from start (cold) to end (warm), making temporal order visible.
+      Requires matplotlib. Set to None to use original colors.
+    :param alpha: Opacity of each frame layer (0.0 fully transparent, 1.0 opaque).
+      Lower values let multiple overlapping poses show through each other.
+    """
+    paths = sorted(glob.glob(os.path.join(frame_dir, f"{prefix}_*.png")))
+    if not paths:
+        raise FileNotFoundError(f"No frames matching '{prefix}_*.png' found in '{frame_dir}'")
+
+    base = Image.open(paths[0]).convert("RGBA")
+    canvas = Image.new("RGBA", base.size, (*bg_color, 255))
+
+    if colormap is not None:
+        import matplotlib.pyplot as plt
+        cmap = plt.get_cmap(colormap)
+
+    n = len(paths)
+    frames = [np.array(Image.open(p).convert("RGB"), dtype=np.float32) for p in paths]
+
+    # Estimate background as the median across all frames.
+    # Pixels occupied by the (moving) skeleton will vary; static background pixels stay constant.
+    bg = np.median(np.stack(frames, axis=0), axis=0)  # H x W x 3
+
+    # Start canvas from the clean background
+    canvas = bg.copy()
+
+    for i, frame in enumerate(frames):
+        # Find foreground pixels: those that differ from the background
+        diff = np.max(np.abs(frame - bg), axis=-1)  # H x W
+        fg_mask = diff > 10  # threshold in pixel intensity (0-255)
+
+        if not fg_mask.any():
+            continue
+
+        fg = frame.copy()
+        if colormap is not None:
+            r, g, b, _ = cmap(i / max(n - 1, 1))
+            tint = np.array([r * 255, g * 255, b * 255], dtype=np.float32)
+            fg[..., :3] = fg[..., :3] * 0.5 + tint * 0.5
+
+        # Alpha-blend foreground pixels into the canvas
+        canvas[fg_mask] = canvas[fg_mask] * (1 - alpha) + fg[fg_mask] * alpha
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    Image.fromarray(np.clip(canvas, 0, 255).astype(np.uint8), "RGB").save(output_path)
+    print(f"Saved overlay image ({n} frames) → {output_path}")
+
+
+def merge_motion_frames(
+    frame_dir,
+    output_path,
+    prefix="frame",
+    cols=None,
+    padding=10,
+    bg_color=(255, 255, 255),
+):
+    """
+    Merge captured frame images into a single composite image.
+
+    Frames are arranged left-to-right in a single row by default. Set `cols`
+    to wrap into a grid (e.g. cols=5 gives a 2-row grid for 10 frames).
+
+    :param frame_dir: Directory containing the PNG frames.
+    :param output_path: Output file path (e.g. "motion_strip.png").
+    :param prefix: Filename prefix used when capturing (must match capture_motion_frames).
+    :param cols: Number of columns. None = all frames in one row.
+    :param padding: Pixel gap between frames and around the border.
+    :param bg_color: Background color as (R, G, B).
+    """
+    paths = sorted(glob.glob(os.path.join(frame_dir, f"{prefix}_*.png")))
+    if not paths:
+        raise FileNotFoundError(f"No frames matching '{prefix}_*.png' found in '{frame_dir}'")
+
+    frames = [Image.open(p) for p in paths]
+    fw, fh = frames[0].size
+
+    n = len(frames)
+    ncols = n if cols is None else cols
+    nrows = (n + ncols - 1) // ncols
+
+    canvas_w = ncols * fw + (ncols + 1) * padding
+    canvas_h = nrows * fh + (nrows + 1) * padding
+
+    canvas = Image.new("RGB", (canvas_w, canvas_h), bg_color)
+
+    for i, img in enumerate(frames):
+        row, col = divmod(i, ncols)
+        x = padding + col * (fw + padding)
+        y = padding + row * (fh + padding)
+        canvas.paste(img, (x, y))
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    canvas.save(output_path)
+    print(f"Saved composite image ({ncols}x{nrows}) → {output_path}")
+
+
 if __name__ == "__main__":
     # Set the path to your SMPL models
     C.smplx_models = "smpl_models/"
@@ -288,5 +537,23 @@ if __name__ == "__main__":
     #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
     #visualize_gait_batch(root+"/gait_114")
-    visualize_gait('test.npy')
+    #visualize_gait('test.npy')
+    #visualize_result("C:/Users/Rui/Vorlesungskript/Master/Thesis/Thesis_project/results/dctmlp_30/config_dctmlp/best_model/generated_motion_concat_5.npy")
+    
+    """"""
+    capture_motion_frames(
+        output_dir="result_motion",
+        smplseq_path=None,
+        keypoints_path="C:/Users/Rui/Vorlesungskript/Master/Thesis/Thesis_project/results/dctmlp_30/config_dctmlp/best_model/reference_motion_4.npy",
+        n_frames=10,
+        size=(1920, 1080),
+        prefix="frame",
+    )
+    
+    overlay_motion_frames(
+        frame_dir="result_motion",
+        output_path="motion_overlay.png",
+        colormap="cool",
+        alpha=0.6,
+    )
 
