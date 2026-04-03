@@ -76,6 +76,7 @@ def plot_crossval_loss(
     log_scale=False,
     ymin=None,
     ymax=None,
+    std_scale=1.0,
 ):
     """
     Args:
@@ -152,7 +153,7 @@ def plot_crossval_loss(
     def _save_single(mean, std, label, color, title, out):
         fig, ax = plt.subplots(figsize=(5.5, 3.5))
         ax.plot(grid, mean, color=color, linewidth=1.5, label=f"{label} (mean)")
-        ax.fill_between(grid, mean - std, mean + std, color=color, alpha=0.20, label="±1 std")
+        ax.fill_between(grid, mean - std_scale * std, mean + std_scale * std, color=color, alpha=0.20, label=f"±{std_scale} std")
         ax.set_xlabel("Training step")
         ax.set_ylabel("Loss")
         ax.set_title(title)
@@ -177,12 +178,12 @@ def plot_crossval_loss(
     else:
         fig, ax = plt.subplots(figsize=(5.5, 3.5))
         ax.plot(grid, train_mean, color="#2166ac", linewidth=1.5, label="Train loss (mean)")
-        ax.fill_between(grid, train_mean - train_std, train_mean + train_std,
-                        color="#2166ac", alpha=0.20, label="Train ±1 std")
+        ax.fill_between(grid, train_mean - std_scale * train_std, train_mean + std_scale * train_std,
+                        color="#2166ac", alpha=0.20, label=f"Train ±{std_scale} std")
         if has_val:
             ax.plot(grid, val_mean, color="#d6604d", linewidth=1.5, label="Val loss (mean)")
-            ax.fill_between(grid, val_mean - val_std, val_mean + val_std,
-                            color="#d6604d", alpha=0.20, label="Val ±1 std")
+            ax.fill_between(grid, val_mean - std_scale * val_std, val_mean + std_scale * val_std,
+                            color="#d6604d", alpha=0.20, label=f"Val ±{std_scale} std")
         ax.set_xlabel("Training step")
         ax.set_ylabel("Loss")
         ax.set_title(f"5-fold cross-validation loss — {config_name}")
@@ -203,7 +204,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--save_dir",     required=True,             help="Crossval base dir (contains fold_0/ ...)")
     parser.add_argument("--num_folds",    default=5,   type=int)
-    parser.add_argument("--train_tag",    default="train_loss",      help="TensorBoard tag for train loss")
+    parser.add_argument("--train_tag",    default="loss",      help="TensorBoard tag for train loss")
     parser.add_argument("--val_tag",      default="val_loss",        help="TensorBoard tag for val loss")
     parser.add_argument("--smooth",       default=1,   type=int,     help="Smoothing window (1=none, try 20-50)")
     parser.add_argument("--n_grid",       default=500, type=int,     help="Interpolation grid points")
@@ -213,6 +214,7 @@ if __name__ == "__main__":
     parser.add_argument("--log",          action="store_true",      help="Use log scale on y-axis")
     parser.add_argument("--ymin",         default=None, type=float, help="Y-axis lower limit (e.g. 0.01)")
     parser.add_argument("--ymax",         default=None, type=float, help="Y-axis upper limit (e.g. 1.0)")
+    parser.add_argument("--std_scale",    default=1.0,  type=float, help="Multiplier for the std band (e.g. 0.5, 1, 2)")
     args = parser.parse_args()
 
     plot_crossval_loss(
@@ -228,4 +230,5 @@ if __name__ == "__main__":
         log_scale    = args.log,
         ymin         = args.ymin,
         ymax         = args.ymax,
+        std_scale    = args.std_scale,
     )
