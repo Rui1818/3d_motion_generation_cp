@@ -23,19 +23,36 @@ from scipy.ndimage import uniform_filter1d
 
 def read_tb_scalar(event_file_dir, tag):
     """
-    Read all (step, value) pairs for a given scalar tag from a TensorBoard event directory.
+    Read all (step, value) pairs for a given tag from a TensorBoard event directory.
+    Checks both 'scalars' and 'tensors' (the latter is used by logger.logkv / log_loss).
     Returns a sorted (N,) array of steps and values, or (None, None) if tag not found.
     """
     from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
-    ea = EventAccumulator(event_file_dir, size_guidance={"scalars": 0})
+    ea = EventAccumulator(event_file_dir, size_guidance={"scalars": 0, "tensors": 0})
     ea.Reload()
-    available = ea.Tags().get("scalars", [])
-    if tag not in available:
+
+    # Try scalars first, then tensors
+    if tag in ea.Tags().get("scalars", []):
+        events = ea.Scalars(tag)
+        steps  = np.array([e.step  for e in events], dtype=np.float32)
+        values = np.array([e.value for e in events], dtype=np.float32)
+    elif tag in ea.Tags().get("tensors", []):
+        events = ea.Tensors(tag)
+        steps  = np.array([e.step for e in events], dtype=np.float32)
+        # tensor_proto for a scalar: value lives in float_val[0] (DT_FLOAT)
+        # or double_val[0] (DT_DOUBLE) — check both
+        def _proto_to_scalar(proto):
+            if proto.float_val:
+                return proto.float_val[0]
+            if proto.double_val:
+                return proto.double_val[0]
+            # fallback: raw bytes as float32
+            return np.frombuffer(proto.tensor_content, dtype=np.float32)[0]
+        values = np.array([_proto_to_scalar(e.tensor_proto) for e in events], dtype=np.float32)
+    else:
         return None, None
-    events = ea.Scalars(tag)
-    steps  = np.array([e.step  for e in events], dtype=np.float32)
-    values = np.array([e.value for e in events], dtype=np.float32)
-    order  = np.argsort(steps)
+
+    order = np.argsort(steps)
     return steps[order], values[order]
 
 
@@ -75,8 +92,10 @@ def plot_crossval_loss(
             print(f"  [warn] fold_{fold_idx} not found, skipping.")
             continue
 
-        steps_t, vals_t = read_tb_scalar(fold_dir, train_tag)
-        steps_v, vals_v = read_tb_scalar(fold_dir, val_tag)
+        # TensorBoard logs are written to a 'tb/' subdirectory
+        tb_dir = os.path.join(fold_dir, "tb") if os.path.isdir(os.path.join(fold_dir, "tb")) else fold_dir
+        steps_t, vals_t = read_tb_scalar(tb_dir, train_tag)
+        steps_v, vals_v = read_tb_scalar(tb_dir, val_tag)
 
         if steps_t is None:
             print(f"  [warn] tag '{train_tag}' not found in fold_{fold_idx}.")
