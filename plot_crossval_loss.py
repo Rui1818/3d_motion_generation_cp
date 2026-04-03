@@ -72,6 +72,7 @@ def plot_crossval_loss(
     n_grid=500,
     out_path="crossval_loss.pdf",
     dpi=300,
+    separate=False,
 ):
     """
     Args:
@@ -137,31 +138,52 @@ def plot_crossval_loss(
         "ps.fonttype":  42,
     })
 
-    fig, ax = plt.subplots(figsize=(5.5, 3.5))
+    config_name = os.path.basename(save_dir)
 
-    # Training loss
-    ax.plot(grid, train_mean, color="#2166ac", linewidth=1.5, label="Train loss (mean)")
-    ax.fill_between(grid, train_mean - train_std, train_mean + train_std,
-                    color="#2166ac", alpha=0.20, label="Train ±1 std")
+    def _save_single(mean, std, label, color, title, out):
+        fig, ax = plt.subplots(figsize=(5.5, 3.5))
+        ax.plot(grid, mean, color=color, linewidth=1.5, label=f"{label} (mean)")
+        ax.fill_between(grid, mean - std, mean + std, color=color, alpha=0.20, label="±1 std")
+        ax.set_xlabel("Training step")
+        ax.set_ylabel("Loss")
+        ax.set_title(title)
+        ax.legend(framealpha=0.9)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+        fig.tight_layout()
+        fig.savefig(out, dpi=dpi, bbox_inches="tight")
+        print(f"Saved → {out}")
+        plt.close(fig)
 
-    # Validation loss
-    if has_val:
-        ax.plot(grid, val_mean, color="#d6604d", linewidth=1.5, label="Val loss (mean)")
-        ax.fill_between(grid, val_mean - val_std, val_mean + val_std,
-                        color="#d6604d", alpha=0.20, label="Val ±1 std")
+    base, ext = os.path.splitext(out_path)
 
-    ax.set_xlabel("Training step")
-    ax.set_ylabel("Loss")
-    ax.set_title(f"5-fold cross-validation loss — {os.path.basename(save_dir)}")
-    ax.legend(framealpha=0.9)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
-
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
-    print(f"Saved → {out_path}")
-    plt.close(fig)
+    if separate:
+        _save_single(train_mean, train_std, "Train loss", "#2166ac",
+                     f"Training loss — {config_name}", f"{base}_train{ext}")
+        if has_val:
+            _save_single(val_mean, val_std, "Val loss", "#d6604d",
+                         f"Validation loss — {config_name}", f"{base}_val{ext}")
+    else:
+        fig, ax = plt.subplots(figsize=(5.5, 3.5))
+        ax.plot(grid, train_mean, color="#2166ac", linewidth=1.5, label="Train loss (mean)")
+        ax.fill_between(grid, train_mean - train_std, train_mean + train_std,
+                        color="#2166ac", alpha=0.20, label="Train ±1 std")
+        if has_val:
+            ax.plot(grid, val_mean, color="#d6604d", linewidth=1.5, label="Val loss (mean)")
+            ax.fill_between(grid, val_mean - val_std, val_mean + val_std,
+                            color="#d6604d", alpha=0.20, label="Val ±1 std")
+        ax.set_xlabel("Training step")
+        ax.set_ylabel("Loss")
+        ax.set_title(f"5-fold cross-validation loss — {config_name}")
+        ax.legend(framealpha=0.9)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+        fig.tight_layout()
+        fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+        print(f"Saved → {out_path}")
+        plt.close(fig)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -176,6 +198,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_grid",       default=500, type=int,     help="Interpolation grid points")
     parser.add_argument("--out",          default="crossval_loss.pdf")
     parser.add_argument("--dpi",          default=300, type=int)
+    parser.add_argument("--separate",     action="store_true",      help="Save train and val as separate files")
     args = parser.parse_args()
 
     plot_crossval_loss(
@@ -187,4 +210,5 @@ if __name__ == "__main__":
         n_grid       = args.n_grid,
         out_path     = args.out,
         dpi          = args.dpi,
+        separate     = args.separate,
     )
