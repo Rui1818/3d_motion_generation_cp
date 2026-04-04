@@ -1,11 +1,14 @@
 """
 Plot cross-validation training/validation loss curves for a paper.
 
-Reads TensorBoard event files from fold_0/ ... fold_N/ inside a crossval save_dir,
-then plots mean ± std across folds with a shaded confidence band.
+Single model:
+    python plot_crossval_loss.py --save_dirs path/to/config --out loss.pdf
 
-Usage:
-    python plot_crossval_loss.py --save_dir final_training/window/config1 --out loss_plot.pdf
+Compare up to 3 models:
+    python plot_crossval_loss.py \
+        --save_dirs path/config1 path/config2 path/config3 \
+        --labels "Model A" "Model B" "Model C" \
+        --out comparison.pdf
 
 Requirements:
     pip install tensorboard scipy matplotlib
@@ -19,6 +22,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
 
+# Colorblind-friendly palette: blue, orange, green
+_COLORS = ["#2166ac", "#d6604d", "#4dac26"]
+
 # ── TensorBoard reader ────────────────────────────────────────────────────────
 
 def read_tb_scalar(event_file_dir, tag):
@@ -31,7 +37,6 @@ def read_tb_scalar(event_file_dir, tag):
     ea = EventAccumulator(event_file_dir, size_guidance={"scalars": 0, "tensors": 0})
     ea.Reload()
 
-    # Try scalars first, then tensors
     if tag in ea.Tags().get("scalars", []):
         events = ea.Scalars(tag)
         steps  = np.array([e.step  for e in events], dtype=np.float32)
@@ -39,14 +44,11 @@ def read_tb_scalar(event_file_dir, tag):
     elif tag in ea.Tags().get("tensors", []):
         events = ea.Tensors(tag)
         steps  = np.array([e.step for e in events], dtype=np.float32)
-        # tensor_proto for a scalar: value lives in float_val[0] (DT_FLOAT)
-        # or double_val[0] (DT_DOUBLE) — check both
         def _proto_to_scalar(proto):
             if proto.float_val:
                 return proto.float_val[0]
             if proto.double_val:
                 return proto.double_val[0]
-            # fallback: raw bytes as float32
             return np.frombuffer(proto.tensor_content, dtype=np.float32)[0]
         values = np.array([_proto_to_scalar(e.tensor_proto) for e in events], dtype=np.float32)
     else:
@@ -56,55 +58,28 @@ def read_tb_scalar(event_file_dir, tag):
     return steps[order], values[order]
 
 
-def interpolate_to_grid(steps, values, grid):
-    """Linearly interpolate values onto a common step grid."""
-    return np.interp(grid, steps, values)
+# ── Curve loading ─────────────────────────────────────────────────────────────
 
-
-# ── Plotting ──────────────────────────────────────────────────────────────────
-
-def plot_crossval_loss(
-    save_dir,
-    num_folds=5,
-    train_tag="train_loss",
-    val_tag="val_loss",
-    smooth_window=1,
-    n_grid=500,
-    out_path="crossval_loss.pdf",
-    dpi=300,
-    separate=False,
-    log_scale=False,
-    ymin=None,
-    ymax=None,
-    std_scale=1.0,
-    max_epochs=1500,
-):
+def load_model_curves(save_dir, num_folds, train_tag, val_tag, smooth_window, n_grid, max_epochs):
     """
-    Args:
-        save_dir     : base crossval directory containing fold_0/, fold_1/, ...
-        num_folds    : number of folds
-        train_tag    : TensorBoard scalar tag for training loss
-        val_tag      : TensorBoard scalar tag for validation loss
-        smooth_window: uniform smoothing kernel size (1 = no smoothing)
-        n_grid       : number of points on the interpolated step grid
-        out_path     : output file path (.pdf or .png)
+    Load and aggregate fold curves for one model directory.
+    Returns (grid, train_mean, train_std, val_mean, val_std).
+    val_mean/val_std are None if val_tag was not found.
     """
-    train_curves, val_curves = [], []
-    all_steps = []
+    train_curves, val_curves, all_steps = [], [], []
 
     for fold_idx in range(num_folds):
         fold_dir = os.path.join(save_dir, f"fold_{fold_idx}")
         if not os.path.isdir(fold_dir):
-            print(f"  [warn] fold_{fold_idx} not found, skipping.")
+            print(f"  [warn] {save_dir}/fold_{fold_idx} not found, skipping.")
             continue
 
-        # TensorBoard logs are written to a 'tb/' subdirectory
         tb_dir = os.path.join(fold_dir, "tb") if os.path.isdir(os.path.join(fold_dir, "tb")) else fold_dir
         steps_t, vals_t = read_tb_scalar(tb_dir, train_tag)
         steps_v, vals_v = read_tb_scalar(tb_dir, val_tag)
 
         if steps_t is None:
-            print(f"  [warn] tag '{train_tag}' not found in fold_{fold_idx}.")
+            print(f"  [warn] tag '{train_tag}' not found in {save_dir}/fold_{fold_idx}.")
             continue
 
         all_steps.append(steps_t[-1])
@@ -113,25 +88,41 @@ def plot_crossval_loss(
             val_curves.append((steps_v, vals_v))
 
     if not train_curves:
-        raise RuntimeError("No training curves found. Check save_dir and tag names.")
+        raise RuntimeError(f"No training curves found in {save_dir}. Check tag names.")
 
-    # Common step grid rescaled so the last step = max_epochs
     max_step = min(all_steps)
-    grid = np.linspace(0, max_epochs, n_grid)  # epoch axis
+    grid = np.linspace(0, max_epochs, n_grid)
 
     def aggregate(curves):
-        # rescale each fold's steps to the same [0, max_epochs] range
-        interped = np.stack([interpolate_to_grid(s * (max_epochs / max_step), v, grid) for s, v in curves])
+        interped = np.stack([
+            np.interp(grid, s * (max_epochs / max_step), v)
+            for s, v in curves
+        ])
         if smooth_window > 1:
             interped = uniform_filter1d(interped, size=smooth_window, axis=1)
         return interped.mean(0), interped.std(0)
 
     train_mean, train_std = aggregate(train_curves)
-    has_val = len(val_curves) > 0
-    if has_val:
-        val_mean, val_std = aggregate(val_curves)
+    val_mean, val_std = aggregate(val_curves) if val_curves else (None, None)
 
-    # ── Figure ────────────────────────────────────────────────────────────────
+    return grid, train_mean, train_std, val_mean, val_std
+
+
+# ── Shared axis style ─────────────────────────────────────────────────────────
+
+def _style_ax(ax, log_scale, ymin, ymax):
+    if log_scale:
+        ax.set_yscale("log")
+    if ymin is not None or ymax is not None:
+        ax.set_ylim(bottom=ymin, top=ymax)
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
+
+
+def _apply_rcparams():
     matplotlib.rcParams.update({
         "font.family": "serif",
         "font.size": 11,
@@ -140,99 +131,158 @@ def plot_crossval_loss(
         "legend.fontsize": 10,
         "xtick.labelsize": 9,
         "ytick.labelsize": 9,
-        "pdf.fonttype": 42,   # embeds fonts in PDF (required by most venues)
+        "pdf.fonttype": 42,
         "ps.fonttype":  42,
     })
 
-    config_name = os.path.basename(save_dir)
 
-    def _apply_axis(ax):
-        if log_scale:
-            ax.set_yscale("log")
-        if ymin is not None or ymax is not None:
-            ax.set_ylim(bottom=ymin, top=ymax)
+# ── Single-model plot ─────────────────────────────────────────────────────────
 
-    def _save_single(mean, std, label, color, title, out):
+def plot_single(label, grid, train_mean, train_std, val_mean, val_std,
+                std_scale, log_scale, ymin, ymax, separate, out_path, dpi):
+    base, ext = os.path.splitext(out_path)
+    color_t, color_v = _COLORS[0], _COLORS[1]
+
+    def _one(mean, std, curve_label, color, title, path):
         fig, ax = plt.subplots(figsize=(5.5, 3.5))
-        ax.plot(grid, mean, color=color, linewidth=1.5, label=f"{label} (mean)")
-        ax.fill_between(grid, mean - std_scale * std, mean + std_scale * std, color=color, alpha=0.20, label=f"±{std_scale} std")
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Loss")
+        ax.plot(grid, mean, color=color, linewidth=1.5, label=f"{curve_label} (mean)")
+        ax.fill_between(grid, mean - std_scale * std, mean + std_scale * std,
+                        color=color, alpha=0.20, label=f"±{std_scale} std")
         ax.set_title(title)
-        _apply_axis(ax)
+        _style_ax(ax, log_scale, ymin, ymax)
         ax.legend(framealpha=0.9)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
         fig.tight_layout()
-        fig.savefig(out, dpi=dpi, bbox_inches="tight")
-        print(f"Saved → {out}")
+        fig.savefig(path, dpi=dpi, bbox_inches="tight")
+        print(f"Saved → {path}")
         plt.close(fig)
 
-    base, ext = os.path.splitext(out_path)
-
     if separate:
-        _save_single(train_mean, train_std, "Train loss", "#2166ac",
-                     f"Training loss — {config_name}", f"{base}_train{ext}")
-        if has_val:
-            _save_single(val_mean, val_std, "Val loss", "#d6604d",
-                         f"Validation loss — {config_name}", f"{base}_val{ext}")
+        _one(train_mean, train_std, "Train loss", color_t,
+             f"Training loss — {label}", f"{base}_train{ext}")
+        if val_mean is not None:
+            _one(val_mean, val_std, "Val loss", color_v,
+                 f"Validation loss — {label}", f"{base}_val{ext}")
     else:
         fig, ax = plt.subplots(figsize=(5.5, 3.5))
-        ax.plot(grid, train_mean, color="#2166ac", linewidth=1.5, label="Train loss (mean)")
+        ax.plot(grid, train_mean, color=color_t, linewidth=1.5, label="Train loss (mean)")
         ax.fill_between(grid, train_mean - std_scale * train_std, train_mean + std_scale * train_std,
-                        color="#2166ac", alpha=0.20, label=f"Train ±{std_scale} std")
-        if has_val:
-            ax.plot(grid, val_mean, color="#d6604d", linewidth=1.5, label="Val loss (mean)")
+                        color=color_t, alpha=0.20, label=f"Train ±{std_scale} std")
+        if val_mean is not None:
+            ax.plot(grid, val_mean, color=color_v, linewidth=1.5, label="Val loss (mean)")
             ax.fill_between(grid, val_mean - std_scale * val_std, val_mean + std_scale * val_std,
-                            color="#d6604d", alpha=0.20, label=f"Val ±{std_scale} std")
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Loss")
-        ax.set_title(f"5-fold cross-validation loss — {config_name}")
-        _apply_axis(ax)
+                            color=color_v, alpha=0.20, label=f"Val ±{std_scale} std")
+        ax.set_title(f"5-fold cross-validation loss — {label}")
+        _style_ax(ax, log_scale, ymin, ymax)
         ax.legend(framealpha=0.9)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.5)
         fig.tight_layout()
         fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
         print(f"Saved → {out_path}")
         plt.close(fig)
 
 
+# ── Multi-model comparison plot ───────────────────────────────────────────────
+
+def plot_comparison(model_data, std_scale, log_scale, ymin, ymax, separate, out_path, dpi):
+    """
+    model_data: list of (label, grid, train_mean, train_std, val_mean, val_std)
+    solid line = train loss, dashed line = val loss, one color per model.
+    With --separate: saves _train.pdf and _val.pdf each containing all models.
+    """
+    base, ext = os.path.splitext(out_path)
+
+    def _make_ax(title):
+        fig, ax = plt.subplots(figsize=(5.5, 3.5))
+        ax.set_title(title)
+        _style_ax(ax, log_scale, ymin, ymax)
+        return fig, ax
+
+    def _add_model(ax, grid, mean, std, color, label, linestyle):
+        ax.plot(grid, mean, color=color, linewidth=1.5, linestyle=linestyle, label=label)
+        ax.fill_between(grid, mean - std_scale * std, mean + std_scale * std,
+                        color=color, alpha=0.15)
+
+    def _finish(fig, ax, path):
+        ax.legend(framealpha=0.9)
+        fig.tight_layout()
+        fig.savefig(path, dpi=dpi, bbox_inches="tight")
+        print(f"Saved → {path}")
+        plt.close(fig)
+
+    if separate:
+        fig_t, ax_t = _make_ax("Training loss comparison")
+        fig_v, ax_v = _make_ax("Validation loss comparison")
+        has_val = False
+        for i, (label, grid, train_mean, train_std, val_mean, val_std) in enumerate(model_data):
+            color = _COLORS[i % len(_COLORS)]
+            _add_model(ax_t, grid, train_mean, train_std, color, label, "-")
+            if val_mean is not None:
+                _add_model(ax_v, grid, val_mean, val_std, color, label, "-")
+                has_val = True
+        _finish(fig_t, ax_t, f"{base}_train{ext}")
+        if has_val:
+            _finish(fig_v, ax_v, f"{base}_val{ext}")
+    else:
+        fig, ax = _make_ax("Cross-validation loss comparison")
+        for i, (label, grid, train_mean, train_std, val_mean, val_std) in enumerate(model_data):
+            color = _COLORS[i % len(_COLORS)]
+            _add_model(ax, grid, train_mean, train_std, color, f"{label} train", "-")
+            if val_mean is not None:
+                _add_model(ax, grid, val_mean, val_std, color, f"{label} val", "--")
+        _finish(fig, ax, out_path)
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--save_dir",     required=True,             help="Crossval base dir (contains fold_0/ ...)")
-    parser.add_argument("--num_folds",    default=5,   type=int)
-    parser.add_argument("--train_tag",    default="loss",      help="TensorBoard tag for train loss")
-    parser.add_argument("--val_tag",      default="val_loss",        help="TensorBoard tag for val loss")
-    parser.add_argument("--smooth",       default=1,   type=int,     help="Smoothing window (1=none, try 20-50)")
-    parser.add_argument("--n_grid",       default=500, type=int,     help="Interpolation grid points")
-    parser.add_argument("--out",          default="crossval_loss.png")
-    parser.add_argument("--dpi",          default=300, type=int)
-    parser.add_argument("--separate",     action="store_true",      help="Save train and val as separate files")
-    parser.add_argument("--log",          action="store_true",      help="Use log scale on y-axis")
-    parser.add_argument("--ymin",         default=None, type=float, help="Y-axis lower limit (e.g. 0.01)")
-    parser.add_argument("--ymax",         default=None, type=float, help="Y-axis upper limit (e.g. 1.0)")
-    parser.add_argument("--std_scale",      default=0.7,   type=float, help="Multiplier for the std band (e.g. 0.5, 1, 2)")
-    parser.add_argument("--max_epochs",    default=1500, type=int,   help="Value shown at the last step on the x-axis (default 1500)")
+    parser.add_argument("--save_dirs",  required=True, nargs="+",
+                        help="One crossval dir (single plot) or 2–3 dirs (comparison)")
+    parser.add_argument("--labels",     nargs="+", default=None,
+                        help="Legend labels for each model (default: folder name)")
+    parser.add_argument("--num_folds",  default=5,    type=int)
+    parser.add_argument("--train_tag",  default="loss",      help="TensorBoard tag for train loss")
+    parser.add_argument("--val_tag",    default="val_loss",  help="TensorBoard tag for val loss")
+    parser.add_argument("--smooth",     default=1,    type=int,   help="Smoothing window (1=none, try 20-50)")
+    parser.add_argument("--n_grid",     default=500,  type=int)
+    parser.add_argument("--out",        default="crossval_loss.pdf")
+    parser.add_argument("--dpi",        default=300,  type=int)
+    parser.add_argument("--separate",   action="store_true", help="Save train and val as separate files")
+    parser.add_argument("--log",        action="store_true", help="Log scale on y-axis")
+    parser.add_argument("--ymin",       default=None, type=float)
+    parser.add_argument("--ymax",       default=None, type=float)
+    parser.add_argument("--std_scale",  default=0.7,  type=float, help="Std band multiplier (default 0.7)")
+    parser.add_argument("--max_epochs", default=1500, type=int,   help="Value at the last x-axis tick")
     args = parser.parse_args()
 
-    plot_crossval_loss(
-        save_dir     = args.save_dir,
-        num_folds    = args.num_folds,
-        train_tag    = args.train_tag,
-        val_tag      = args.val_tag,
-        smooth_window= args.smooth,
-        n_grid       = args.n_grid,
-        out_path     = args.out,
-        dpi          = args.dpi,
-        separate     = args.separate,
-        log_scale    = args.log,
-        ymin         = args.ymin,
-        ymax         = args.ymax,
-        std_scale      = args.std_scale,
-        max_epochs     = args.max_epochs,
-    )
+    if len(args.save_dirs) > 3:
+        parser.error("At most 3 models can be compared.")
+
+    _apply_rcparams()
+
+    labels = args.labels or [os.path.basename(d.rstrip("/\\")) for d in args.save_dirs]
+    if len(labels) != len(args.save_dirs):
+        parser.error("--labels count must match --save_dirs count.")
+
+    model_data = []
+    for save_dir, label in zip(args.save_dirs, labels):
+        print(f"\nLoading: {save_dir}  ({label})")
+        grid, train_mean, train_std, val_mean, val_std = load_model_curves(
+            save_dir    = save_dir,
+            num_folds   = args.num_folds,
+            train_tag   = args.train_tag,
+            val_tag     = args.val_tag,
+            smooth_window = args.smooth,
+            n_grid      = args.n_grid,
+            max_epochs  = args.max_epochs,
+        )
+        model_data.append((label, grid, train_mean, train_std, val_mean, val_std))
+
+    shared = dict(std_scale=args.std_scale, log_scale=args.log,
+                  ymin=args.ymin, ymax=args.ymax, separate=args.separate,
+                  out_path=args.out, dpi=args.dpi)
+
+    if len(model_data) == 1:
+        label, grid, train_mean, train_std, val_mean, val_std = model_data[0]
+        plot_single(label, grid, train_mean, train_std, val_mean, val_std, **shared)
+    else:
+        plot_comparison(model_data, **shared)
