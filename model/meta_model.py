@@ -1,3 +1,4 @@
+# MLP blocks are based on the AGRoL paper: https://github.com/facebookresearch/AGRoL/blob/main/model/networks.py
 import numpy as np
 import torch
 import torch.nn as nn
@@ -12,14 +13,13 @@ class MetaModel(nn.Module):
         latent_dim=256,
         num_layers=8,
         dropout=0.1,
-        dataset="amass",
-        sparse_dim=54,
+        sparse_dim=69,
         **kargs,
     ):
         super().__init__()
+        #backbone architecture for the diffusion model, currently supports DiffMLP and DiffTransformer
         self.arch = DiffTransformer
         #self.arch = DiffMLP
-        self.dataset = dataset
 
         self.input_feats = nfeats
         self.latent_dim = latent_dim

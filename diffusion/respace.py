@@ -4,16 +4,11 @@
 # This code is based on https://github.com/openai/guided-diffusion
 # MIT License
 # Copyright (c) 2022 Guy Tevet
-#
-# This code is based on https://github.com/GuyTevet/motion-diffusion-model
-# Copyright (c) Meta Platforms, Inc. All Rights Reserved
 
 import numpy as np
 import torch as th
 
 from diffusion.gait_diffusion import GaitDiffusionModel
-
-#from .diffusion_model import DiffusionModel
 
 
 def space_timesteps(num_timesteps, section_counts):

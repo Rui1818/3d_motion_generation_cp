@@ -39,7 +39,6 @@ def get_model_args(args):
         "num_layers": args.layers,
         "dropout": 0.1,
         "cond_mask_prob": args.cond_mask_prob,
-        "dataset": args.dataset,
         "input_motion_length": args.input_motion_length,
     }
 

@@ -1,4 +1,4 @@
-# Copyright (c) Meta Platforms, Inc. All Rights Reserved
+# MLP blocks are based on the AGRoL paper: https://github.com/facebookresearch/AGRoL/blob/main/model/networks.py
 import numpy as np
 import torch
 import torch.nn as nn
@@ -194,22 +194,3 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class PureMLP(nn.Module):
-    def __init__(
-        self, latent_dim=512, seq=98, num_layers=12, input_dim=54, output_dim=132
-    ):
-        super(PureMLP, self).__init__()
-
-        self.input_fc = nn.Linear(input_dim, latent_dim)
-        self.motion_mlp = BaseMLP(
-            dim=latent_dim, seq=seq, num_layers=num_layers, w_embed=False
-        )
-        self.output_fc = nn.Linear(latent_dim, output_dim)
-
-    def forward(self, motion_input):
-
-        motion_feats = self.input_fc(motion_input)
-        motion_feats = self.motion_mlp(motion_feats)
-        motion_feats = self.output_fc(motion_feats)
-
-        return motion_feats

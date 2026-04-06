@@ -1,126 +1,226 @@
-# AGRoL: Generating Smooth Human Motion from Sparse Tracking Inputs with Diffusion Model
+# 3D Motion Generation for Children with Walking Disabilities
 
-> [**Avatars Grow Legs: Generating Smooth Human Motion from Sparse Tracking Inputs with Diffusion Model**](https://dulucas.github.io/agrol/)
-> [Y. Du](https://dulucas.github.io/), [R. Kips](https://scholar.google.fr/citations?user=RwyrWEkAAAAJ&hl=en), A. [Pumarola](https://www.albertpumarola.com/), [S. Starke](https://www.sebastianxstarke.com/), [A. Thabet](https://scholar.google.com/citations?user=7T0CPEkAAAAJ&hl=en), [A. Sanakoyeu](https://gdude.de/)
-> CVPR 2023
+Master's Thesis project
 
-[[`arXiv`](https://arxiv.org/abs/2304.08577)] [[`Project`](https://dulucas.github.io/agrol/)] [[`BibTeX`](#-citing-agrol)]
+This project trains a diffusion model to generate corrected 3D gait motions (with orthosis) conditioned on the pathological gait of a patient. The model is evaluated on a dataset of 15 subjects using 5-fold subject-level cross-validation.
 
-<p align="center"> <img src='imgs/teaser.jpg' align="center" > </p>
+The diffusion model code is adapted from [AGRoL](https://github.com/facebookresearch/AGRoL) (Du et al., CVPR 2023).
 
-## Enviroment Setup
-All our experiments are done on a single V-100 16G GPU.
-```
+---
+
+## Environment Setup
+
+```bash
 conda env create -f environment.yml
-conda activate agrol
+conda activate gait3d
 ```
-The code was tested on Python 3.9 and PyTorch 1.12.1.
 
-Download the [human_body_prior](https://github.com/nghorbani/human_body_prior/tree/master/src) lib and [body_visualizer](https://github.com/nghorbani/body_visualizer/tree/master/src) lib and put them in this repo. The repo should look like
+---
+
+## Project Structure
+
 ```
-agrol
-├── body_visualizer
-├──── mesh/
-├──── tools/
-├──── ...
-├── human_body_prior/
-├──── body_model/
-├──── data/
-├──── ...
-├── dataset/
-├── prepare_data/
+Thesis_project/
+├── gait_train.py              # Single-run training
+├── gait_crossval.py           # 5-fold cross-validation training
+├── gait_crossval_eval.py      # Cross-validation evaluation
+├── gait_generate.py           # Motion generation + metric computation
+├── train_autoencoder.py       # Train autoencoder for FID computation
+├── compute_fid.py             # Standalone FID computation
+├── plot_crossval_loss.py      # Plot training/validation loss curves
+├── summarize_crossval.py      # Summarize cross-val metrics across folds
+├── run_gait_training_final.sh # Main experiment runner (calls gait_crossval.py)
+├── run_crossval_eval.sh       # Evaluation runner (calls gait_crossval_eval.py)
+├── data_loaders/              # Dataset and dataloader
+├── diffusion/                 # Diffusion process (DDPM, Gaussian diffusion)
+├── model/                     # DiffMLP and DiffTransformer architectures
+├── runner/                    # Training loop
+├── utils/                     # Metrics, transforms, rotation utils, DCT
+├── final_dataset/             # Training data (subject folders)
+├── test_dataset/              # Held-out test data
+└── results/                   # Generated motions and metrics
+```
+
+---
+
+## Dataset
+
+The dataset contains 3D gait recordings from 15 subjects. Each subject folder holds paired motion files:
+- **Pathological gait** — input condition to the model
+- **Corrected gait (with orthosis)** — generation target
+
+Two motion representations are supported:
+- `openpose` — 23 joints × 3 coordinates (69-dim)
+- `6d` — 6D rotation representation + translation (135-dim)
+
+The dataset should be placed at `final_dataset/`, with one sub-folder per subject:
+
+```
+final_dataset/
+├── subject_01/
+├── subject_02/
 └── ...
 ```
 
-## Dataset Preparation
-Please download the AMASS dataset from [here](https://amass.is.tue.mpg.de/)(SMPL+H G).
-```
-python prepare_data.py --support_dir /path/to/your/smplh/dmpls --save_dir ./dataset/AMASS/ --root_dir /path/to/your/amass/dataset
-```
-The generated dataset should look like this
-```
-./dataset/AMASS/
-├── BioMotionLab_NTroje
-├──── train/
-├──── test/
-├── CMU/
-├──── train/
-├──── test/
-└── MPI_HDM05/
-├──── train/
-└──── test/
-```
-
-## Evaluation
-You can either download our pre-trained models or use your pre-trained model.
-To download our pre-trained models:
-```
-sh prepare_data/download_model.sh
-```
-
-To evaluate the model:
-```
-# Diffusion model
-python test.py --model_path /path/to/your/model --timestep_respacing ddim5 --support_dir /path/to/your/smpls/dmpls --dataset_path ./dataset/AMASS/
-
-# MLP
-python test.py --model_path /path/to/your/model --support_dir /path/to/your/smpls/dmpls --dataset_path ./dataset/AMASS/
-```
+---
 
 ## Training
-To train the AGRoL diffusion-model:
-```
-python train.py --save_dir /path/to/save/your/model --dataset amass --weight_decay 1e-4 --batch_size 256 --lr 3e-4 --latent_dim 512 --save_interval 1 --log_interval 1 --device 0 --input_motion_length 196 --diffusion_steps 1000 --num_workers 8 --motion_nfeat 132 --arch diffusion_DiffMLP --layers 12 --sparse_dim 54 --train_dataset_repeat_times 1000 --lr_anneal_steps 225000 --overwrite
-```
-To train the MLP model:
-```
-python train.py --save_dir /path/to/save/your/model --dataset amass --weight_decay 1e-4 --batch_size 256 --lr 3e-4 --latent_dim 512 --save_interval 1 --log_interval 1 --device 0 --input_motion_length 196 --diffusion_steps 1000 --num_workers 8 --motion_nfeat 132 --arch mlp_PureMLP --layers 12 --sparse_dim 54 --train_dataset_repeat_times 1000 --lr_anneal_steps 225000 --overwrite --no_normalization
+
+### Cross-validation (recommended)
+
+Runs 5-fold subject-level cross-validation using `gait_crossval.py`. Use the provided shell script to reproduce experiments:
+
+```bash
+bash run_gait_training_final.sh
 ```
 
-## Pretrained Weights
-The pretrained weights for AGRoL can be downloaded from this link: https://github.com/facebookresearch/AGRoL/releases/tag/v0
+Or run a single configuration manually:
 
-To download the wights automatically, please run `bash prepare_data/download_model.sh`.
-
-To test the pretrained AGRoL diffusion-model:
-```
-python test.py --model_path pretrained_weights/diffmlp.pt --timestep_respacing ddim5 --support_dir /path/to/your/smpls/dmpls --dataset_path ./dataset/AMASS/
-```
-
-To visualize the generated motions, add these commands behind:
-```
---vis --output_dir /path/to/save/your/videos
-```
-
-## License
-![CC BY-NC 4.0][cc-by-nc-shield]
-
-The majority of AGRoL code is licensed under CC-BY-NC, however portions of the project are available under separate license terms:
-- Trimesh, [AvatarPose](https://github.com/eth-siplab/AvatarPoser), [Guided Diffusion](https://github.com/openai/guided-diffusion), and [MDM](https://github.com/GuyTevet/motion-diffusion-model) are licensed under the MIT license;
-- Human Body Prior is licensed under a custom license for non-commercial scientific research purposes, available at [link](https://github.com/nghorbani/human_body_prior/blob/master/LICENSE);
-- Body Visualizer is licensed under a custom license for non-commercial scientific research purposes, available at [link](https://github.com/nghorbani/body_visualizer/blob/master/LICENSE).
-
-[cc-by-nc-shield]: https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg
-
-## <a name="CitingAGRoL"></a> Citing AGRoL
-If you find our work inspiring or use our codebase in your research, please consider giving a star ⭐ and a citation.
-
-```BibTeX
-@inproceedings{du2023agrol,
-  author    = {Du, Yuming and Kips, Robin and Pumarola, Albert and Starke, Sebastian and Thabet, Ali and Sanakoyeu, Artsiom},
-  title     = {Avatars Grow Legs: Generating Smooth Human Motion from Sparse Tracking Inputs with Diffusion Model},
-  booktitle = {CVPR},
-  year      = {2023},
-}
+```bash
+python gait_crossval.py \
+    --save_dir results/my_experiment \
+    --dataset_path final_dataset \
+    --dataset gait \
+    --arch diffusion_DiffMLP \
+    --keypointtype openpose \
+    --input_motion_length 30 \
+    --motion_nfeat 69 \
+    --sparse_dim 69 \
+    --latent_dim 512 \
+    --layers 8 \
+    --lr 2e-4 \
+    --weight_decay 1e-4 \
+    --num_steps 70000 \
+    --lr_anneal_steps 30000 \
+    --batch_size 8 \
+    --loss_func mse \
+    --overwrite
 ```
 
-## Trouble Shooting
+Key arguments:
 
-If you encounter this error during visualization:
+| Argument | Description |
+|---|---|
+| `--keypointtype` | `openpose` (69-dim) or `6d` (135-dim) |
+| `--input_motion_length` | Window size in frames (30, 60, or 240) |
+| `--arch` | `diffusion_DiffMLP` or `diffusion_DiffTransformer` |
+| `--loss_func` | `mse` or `softdtw` |
+| `--use_dct` | Apply DCT in frequency domain before diffusion |
+| `--lambda_rot_vel` | Weight for rotational velocity auxiliary loss |
+| `--lambda_transl_vel` | Weight for translational velocity auxiliary loss |
+| `--cond_mask_prob` | Condition dropout probability (classifier-free guidance) |
+
+### Single-run training
+
+```bash
+python gait_train.py \
+    --save_dir results/single_run \
+    --dataset_path final_dataset \
+    --dataset gait \
+    --keypointtype openpose \
+    --input_motion_length 30 \
+    --motion_nfeat 69 \
+    --sparse_dim 69 \
+    --arch diffusion_DiffMLP \
+    --latent_dim 512 \
+    --layers 8 \
+    --lr 2e-4 \
+    --num_steps 70000 \
+    --batch_size 8 \
+    --overwrite
 ```
-ValueError: Cannot use face colors with a smooth mesh
+
+---
+
+## Evaluation
+
+### Cross-validation evaluation
+
+Runs generation on each fold's held-out subjects and aggregates metrics (MPJPE, PAMPJPE, DTW, jitter, FID):
+
+```bash
+bash run_crossval_eval.sh
 ```
-You can fix it by changing the line 88 in your `body_visualizer/mesh/mesh_viewer.py` to:
+
+Or run directly:
+
+```bash
+python gait_crossval_eval.py \
+    --save_dir results/my_experiment \
+    --dataset_path final_dataset \
+    --num_folds 5 \
+    --autoencoder_path checkpoints/best_autoencoder.pt
 ```
-mesh = pyrender.Mesh.from_trimesh(mesh, smooth=False)
+
+### Single-run generation
+
+```bash
+python gait_generate.py \
+    <path/to/model.pt> \
+    --output_dir results/generated
 ```
+
+Metrics computed per sample: MPJPE, PAMPJPE, DTW (geodesic and trajectory), jitter.
+
+### Summarize results
+
+```bash
+python summarize_crossval.py
+```
+
+### Plot training curves
+
+```bash
+python plot_crossval_loss.py
+```
+
+---
+
+## FID Computation
+
+FID requires a trained motion autoencoder as the feature extractor.
+
+**1. Train the autoencoder:**
+
+```bash
+python train_autoencoder.py \
+    --dataset_path final_dataset \
+    --keypointtype openpose \
+    --save_dir checkpoints/autoencoder
+```
+
+**2. Compute FID** (standalone, or done automatically in `gait_crossval_eval.py`):
+
+```bash
+python compute_fid.py \
+    --autoencoder_path checkpoints/autoencoder/best_autoencoder.pt \
+    --real_dir final_dataset \
+    --generated_dir results/generated
+```
+
+---
+
+## Visualization
+
+Three interactive viewers are provided (require [aitviewer](https://github.com/eth-siplab/AitViewer)):
+
+```bash
+# View generated skeleton motions
+python generationviewer.py
+
+# View skeleton from .npy file
+python skeletonviewer.py
+
+# View SMPL-X body model
+python smplviewer.py
+```
+
+---
+
+## Credits
+
+The diffusion model architecture and training loop are adapted from:
+
+> **Avatars Grow Legs: Generating Smooth Human Motion from Sparse Tracking Inputs with Diffusion Model**
+> Y. Du, R. Kips, A. Pumarola, S. Starke, A. Thabet, A. Sanakoyeu — CVPR 2023
+> [[Paper]](https://arxiv.org/abs/2304.08577) [[Code]](https://github.com/facebookresearch/AGRoL)
