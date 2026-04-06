@@ -10,6 +10,7 @@ CSVs are also written next to this script.
 
 import os
 import json
+import argparse
 import numpy as np
 import pandas as pd
 
@@ -86,9 +87,23 @@ def checkpoint_label(suffix: str) -> str:
 
 # ── Build DataFrames ──────────────────────────────────────────────────────────
 
-def build_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
-    rows_metrics = []
-    rows_fid     = []
+def aggregate_by_action(samples: list[dict]) -> list[dict]:
+    """Group samples by action label and aggregate metrics per group."""
+    from collections import defaultdict
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for s in samples:
+        groups[s.get("action", "unknown")].append(s)
+    rows = []
+    for action, group in sorted(groups.items()):
+        agg = aggregate(group)
+        rows.append({"action": action, "n_samples": len(group), **agg})
+    return rows
+
+
+def build_dataframes() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    rows_metrics        = []
+    rows_metrics_action = []
+    rows_fid            = []
 
     for model_dir in MODEL_DIRS:
         if not os.path.isdir(model_dir):
@@ -119,11 +134,17 @@ def build_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
                 agg = aggregate(samples)
                 rows_metrics.append({**row_base, "metric_type": "per_window", **agg})
 
+                for action_row in aggregate_by_action(samples):
+                    rows_metrics_action.append({**row_base, "metric_type": "per_window", **action_row})
+
             # ── Full-concat metrics (sliding-window models only) ──────────────
             concat_samples = _load_npy(os.path.join(model_dir, f"crossval_metrics_concat{suffix}.npy"))
             if concat_samples is not None:
                 agg_concat = aggregate(concat_samples)
                 rows_metrics.append({**row_base, "metric_type": "full_concat", **agg_concat})
+
+                for action_row in aggregate_by_action(concat_samples):
+                    rows_metrics_action.append({**row_base, "metric_type": "full_concat", **action_row})
 
             # ── FID ───────────────────────────────────────────────────────────
             fid_data = _load_npy(os.path.join(model_dir, f"fid_result{suffix}.npy"))
@@ -135,7 +156,7 @@ def build_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
                     "gen_windows":  fid_data.get("gen_windows"),
                 })
 
-    return pd.DataFrame(rows_metrics), pd.DataFrame(rows_fid)
+    return pd.DataFrame(rows_metrics), pd.DataFrame(rows_metrics_action), pd.DataFrame(rows_fid)
 
 
 # ── Display ───────────────────────────────────────────────────────────────────
@@ -163,6 +184,27 @@ def print_metrics_df(df: pd.DataFrame) -> None:
     print(df[id_present + std_cols].to_string(index=False))
 
 
+def print_action_df(df: pd.DataFrame) -> None:
+    if df.empty:
+        print("  (no per-action data found)")
+        return
+
+    pd.set_option("display.float_format", "{:.4f}".format)
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.width", 240)
+
+    id_cols    = ["model", "checkpoint", "metric_type", "keypointtype", "window", "action", "n_samples"]
+    mean_cols  = [c for c in df.columns if c.endswith("_mean")]
+    std_cols   = [c for c in df.columns if c.endswith("_std")]
+    id_present = [c for c in id_cols if c in df.columns]
+
+    print("\n  -- Means --")
+    print(df[id_present + mean_cols].to_string(index=False))
+
+    print("\n  -- Standard Deviations --")
+    print(df[id_present + std_cols].to_string(index=False))
+
+
 def print_fid_df(df: pd.DataFrame) -> None:
     if df.empty:
         print("  (no FID files found — was --autoencoder_path provided?)")
@@ -180,13 +222,23 @@ def print_fid_df(df: pd.DataFrame) -> None:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("suffix", type=str, help="Suffix appended to output CSV filenames, e.g. 'v1' → crossval_summary_metrics_v1.csv")
+    args = parser.parse_args()
+    suffix = f"_{args.suffix}"
+
     print("Scanning model directories...")
-    df_metrics, df_fid = build_dataframes()
+    df_metrics, df_metrics_action, df_fid = build_dataframes()
 
     print("\n" + "=" * 80)
-    print("CROSS-VALIDATION METRICS SUMMARY")
+    print("CROSS-VALIDATION METRICS SUMMARY  (all actions combined)")
     print("=" * 80)
     print_metrics_df(df_metrics)
+
+    print("\n" + "=" * 80)
+    print("CROSS-VALIDATION METRICS  (per action)")
+    print("=" * 80)
+    print_action_df(df_metrics_action)
 
     print("\n" + "=" * 80)
     print("FID SCORES")
@@ -195,11 +247,17 @@ def main():
 
     # Save to CSV
     if not df_metrics.empty:
-        df_metrics.to_csv("crossval_summary_metrics.csv", index=False)
-        print("\nMetrics CSV → crossval_summary_metrics.csv")
+        fname = f"crossval_summary_metrics{suffix}.csv"
+        df_metrics.to_csv(fname, index=False)
+        print(f"\nMetrics CSV        → {fname}")
+    if not df_metrics_action.empty:
+        fname = f"crossval_summary_metrics_per_action{suffix}.csv"
+        df_metrics_action.to_csv(fname, index=False)
+        print(f"Per-action CSV     → {fname}")
     if not df_fid.empty:
-        df_fid.to_csv("crossval_summary_fid.csv", index=False)
-        print("FID CSV     → crossval_summary_fid.csv")
+        fname = f"crossval_summary_fid{suffix}.csv"
+        df_fid.to_csv(fname, index=False)
+        print(f"FID CSV            → {fname}")
 
 
 if __name__ == "__main__":
