@@ -29,8 +29,11 @@ run_eval() {
         --save_dir \"$save_dir\" \
         --dataset_path \"$DATASET_PATH\" \
         --num_folds $NUM_FOLDS \
-        --seed $SEED
-        --autoencoder_path \"$ae\""
+        --seed $SEED"
+
+    if [ -n "$ae" ]; then
+        cmd="$cmd --autoencoder_path \"$ae\""
+    fi
 
     eval $cmd
 
@@ -44,18 +47,18 @@ run_eval() {
 # ── Model list ────────────────────────────────────────────────────────────────
 # Add or remove save_dirs here. Each should contain fold_0/, fold_1/, etc.
 
-#run_eval "final_training/full/config1"
-#run_eval "final_training/full/config2"
-#run_eval "final_training/full/config3"
-#run_eval "final_training/full/config4"
-#run_eval "final_training/full/config5"
-#run_eval "final_training/full/config6"
-#run_eval "final_training/full/config7"
-#run_eval "final_training/full/config8"
-#run_eval "final_training/full/config9"
-#run_eval "final_training/full/config10"
-#run_eval "final_training/full/config11"
-#run_eval "final_training/full/config12"
+run_eval "final_training/full/config1"
+run_eval "final_training/full/config2"
+run_eval "final_training/full/config3"
+run_eval "final_training/full/config4"
+run_eval "final_training/full/config5"
+run_eval "final_training/full/config6"
+run_eval "final_training/full/config7"
+run_eval "final_training/full/config8"
+run_eval "final_training/full/config9"
+run_eval "final_training/full/config10"
+run_eval "final_training/full/config11"
+run_eval "final_training/full/config12"
 
 #run_eval "final_training/window/config1" checkpoints/experiments/w30openpose/best_autoencoder.pt
 #run_eval "final_training/window/config4" checkpoints/experiments/w60openpose/best_autoencoder.pt
@@ -69,18 +72,48 @@ run_eval() {
 #run_eval "final_training/window/config16" checkpoints/experiments/w30rot/best_autoencoder.pt
 
 
-run_eval "my_training/transformer/config1" checkpoints/experiments/w30openpose/best_autoencoder.pt
-run_eval "my_training/transformer/config2" checkpoints/experiments/w30openpose/best_autoencoder.pt
-run_eval "my_training/transformer/config3" checkpoints/experiments/w60openpose/best_autoencoder.pt
-run_eval "my_training/transformer/config4" checkpoints/experiments/w60openpose/best_autoencoder.pt
-run_eval "my_training/transformer/config5" checkpoints/experiments/w30rot/best_autoencoder.pt
-run_eval "my_training/transformer/config6" checkpoints/experiments/w30rot/best_autoencoder.pt
-run_eval "my_training/transformer/config7" checkpoints/experiments/w60rot/best_autoencoder.pt
-run_eval "my_training/transformer/config8" checkpoints/experiments/w60rot/best_autoencoder.pt
-run_eval "my_training/transformer/config9" checkpoints/experiments/w60openpose/best_autoencoder.pt
-run_eval "my_training/transformer/config10" checkpoints/experiments/w60rot/best_autoencoder.pt
-run_eval "my_training/transformer/config11" checkpoints/experiments/w30openpose/best_autoencoder.pt
+#run_eval "my_training/transformer/config1" checkpoints/experiments/w30openpose/best_autoencoder.pt
+#run_eval "my_training/transformer/config2" checkpoints/experiments/w30openpose/best_autoencoder.pt
+#run_eval "my_training/transformer/config3" checkpoints/experiments/w60openpose/best_autoencoder.pt
+#run_eval "my_training/transformer/config4" checkpoints/experiments/w60openpose/best_autoencoder.pt
+#run_eval "my_training/transformer/config5" checkpoints/experiments/w30rot/best_autoencoder.pt
+#run_eval "my_training/transformer/config6" checkpoints/experiments/w30rot/best_autoencoder.pt
+#run_eval "my_training/transformer/config7" checkpoints/experiments/w60rot/best_autoencoder.pt
+#run_eval "my_training/transformer/config8" checkpoints/experiments/w60rot/best_autoencoder.pt
+#run_eval "my_training/transformer/config9" checkpoints/experiments/w60openpose/best_autoencoder.pt
+#run_eval "my_training/transformer/config10" checkpoints/experiments/w60rot/best_autoencoder.pt
+#run_eval "my_training/transformer/config11" checkpoints/experiments/w30openpose/best_autoencoder.pt
 #run_eval "my_training/transformer/config12" checkpoints/experiments/w30rot/best_autoencoder.pt
+
+#run_eval "final_training/dcttransformer/config1" checkpoints/experiments/w30openpose/best_autoencoder.pt
+#run_eval "final_training/dcttransformer/config2" checkpoints/experiments/w30openpose/best_autoencoder.pt
+#run_eval "final_training/dcttransformer/config3" checkpoints/experiments/w60openpose/best_autoencoder.pt
+#run_eval "final_training/dcttransformer/config4" checkpoints/experiments/w60openpose/best_autoencoder.pt
+#run_eval "final_training/dcttransformer/config5" checkpoints/experiments/w30rot/best_autoencoder.pt
+#run_eval "final_training/dcttransformer/config6" checkpoints/experiments/w30rot/best_autoencoder.pt
+#run_eval "final_training/dcttransformer/config7" checkpoints/experiments/w60rot/best_autoencoder.pt
+#run_eval "final_training/dcttransformer/config8" checkpoints/experiments/w60rot/best_autoencoder.pt
+
+#run_eval "final_training/dcttransformer/config9" checkpoints/experiments/w60openpose/best_autoencoder.pt
+
+#TODO
+#run_eval "final_training/dcttransformer/config10" checkpoints/experiments/w60rot/best_autoencoder.pt
+#run_eval "final_training/dcttransformer/config11" checkpoints/experiments/w30openpose/best_autoencoder.pt
+#run_eval "final_training/dcttransformer/config12" checkpoints/experiments/w30rot/best_autoencoder.pt
+
+
+#run_eval "final_training/dctmlp/config1" checkpoints/experiments/w30openpose/best_autoencoder.pt
+#run_eval "final_training/dctmlp/config2" checkpoints/experiments/w30openpose/best_autoencoder.pt
+#run_eval "final_training/dctmlp/config3" checkpoints/experiments/w60openpose/best_autoencoder.pt
+#run_eval "final_training/dctmlp/config4" checkpoints/experiments/w60openpose/best_autoencoder.pt
+#run_eval "final_training/dctmlp/config5" checkpoints/experiments/w30rot/best_autoencoder.pt
+#run_eval "final_training/dctmlp/config6" checkpoints/experiments/w30rot/best_autoencoder.pt
+run_eval "final_training/dctmlp/config7" checkpoints/experiments/w60rot/best_autoencoder.pt
+run_eval "final_training/dctmlp/config8" checkpoints/experiments/w60rot/best_autoencoder.pt
+run_eval "final_training/dctmlp/config9" checkpoints/experiments/w60openpose/best_autoencoder.pt
+run_eval "final_training/dctmlp/config10" checkpoints/experiments/w60rot/best_autoencoder.pt
+run_eval "final_training/dctmlp/config11" checkpoints/experiments/w30openpose/best_autoencoder.pt
+run_eval "final_training/dctmlp/config12" checkpoints/experiments/w30rot/best_autoencoder.pt
 
 echo ""
 echo "======================================================================"

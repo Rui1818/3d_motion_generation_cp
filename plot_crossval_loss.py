@@ -77,6 +77,7 @@ def load_model_curves(save_dir, num_folds, train_tag, val_tag, smooth_window, n_
         tb_dir = os.path.join(fold_dir, "tb") if os.path.isdir(os.path.join(fold_dir, "tb")) else fold_dir
         steps_t, vals_t = read_tb_scalar(tb_dir, train_tag)
         steps_v, vals_v = read_tb_scalar(tb_dir, val_tag)
+        print(vals_v)
 
         if steps_t is None:
             print(f"  [warn] tag '{train_tag}' not found in {save_dir}/fold_{fold_idx}.")
@@ -212,11 +213,14 @@ def plot_comparison(model_data, std_scale, log_scale, ymin, ymax, separate, out_
         fig_t, ax_t = _make_ax("Training loss comparison")
         fig_v, ax_v = _make_ax("Validation loss comparison")
         has_val = False
+        #labelmap={"config1": "Window 30", "config4": "Full Sequence", "config6": "Window 60"}
+        labelmap={"config13": "Soft-DTW", "config6": "Full Sequence", "config6": "L_simple+Velocity"}
         for i, (label, grid, train_mean, train_std, val_mean, val_std) in enumerate(model_data):
             color = _COLORS[i % len(_COLORS)]
-            _add_model(ax_t, grid, train_mean, train_std, color, label, "-")
+            print(f"Plotting model: {label}")
+            _add_model(ax_t, grid, train_mean, train_std, color, labelmap[label], "-")
             if val_mean is not None:
-                _add_model(ax_v, grid, val_mean, val_std, color, label, "-")
+                _add_model(ax_v, grid, val_mean, val_std, color, labelmap[label], "-")
                 has_val = True
         _finish(fig_t, ax_t, f"{base}_train{ext}")
         if has_val:
@@ -241,16 +245,16 @@ if __name__ == "__main__":
                         help="Legend labels for each model (default: folder name)")
     parser.add_argument("--num_folds",  default=5,    type=int)
     parser.add_argument("--train_tag",  default="loss",      help="TensorBoard tag for train loss")
-    parser.add_argument("--val_tag",    default="val_loss",  help="TensorBoard tag for val loss")
+    parser.add_argument("--val_tag",    default="val_dtw_loss",  help="TensorBoard tag for val loss")
     parser.add_argument("--smooth",     default=1,    type=int,   help="Smoothing window (1=none, try 20-50)")
     parser.add_argument("--n_grid",     default=500,  type=int)
-    parser.add_argument("--out",        default="crossval_loss.pdf")
+    parser.add_argument("--out",        default="crossval_loss.png")
     parser.add_argument("--dpi",        default=300,  type=int)
     parser.add_argument("--separate",   action="store_true", help="Save train and val as separate files")
     parser.add_argument("--log",        action="store_true", help="Log scale on y-axis")
     parser.add_argument("--ymin",       default=None, type=float)
     parser.add_argument("--ymax",       default=None, type=float)
-    parser.add_argument("--std_scale",  default=0.7,  type=float, help="Std band multiplier (default 0.7)")
+    parser.add_argument("--std_scale",  default=0.5,  type=float, help="Std band multiplier (default 0.7)")
     parser.add_argument("--max_epochs", default=1500, type=int,   help="Value at the last x-axis tick")
     args = parser.parse_args()
 

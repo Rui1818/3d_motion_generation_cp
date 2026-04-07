@@ -28,7 +28,68 @@ MODEL_DIRS = [
     "my_training/transformer/config9",
     "my_training/transformer/config10",
     "my_training/transformer/config11",
+    "my_training/transformer/config12",
 ]
+
+MODEL_DIRS = [
+    "final_training/dcttransformer/config1",
+    "final_training/dcttransformer/config2",
+    "final_training/dcttransformer/config3",
+    "final_training/dcttransformer/config4",
+    "final_training/dcttransformer/config5",
+    "final_training/dcttransformer/config6",
+    "final_training/dcttransformer/config7",
+    "final_training/dcttransformer/config8",
+    "final_training/dcttransformer/config9",
+    "final_training/dcttransformer/config10",
+    "final_training/dcttransformer/config11",
+    "final_training/dcttransformer/config12",
+]
+
+MODEL_DIRS = [
+    "final_training/dctmlp/config1",
+    "final_training/dctmlp/config2",
+    "final_training/dctmlp/config3",
+    "final_training/dctmlp/config4",
+    "final_training/dctmlp/config5",
+    "final_training/dctmlp/config6",
+    "final_training/dctmlp/config7",
+    "final_training/dctmlp/config8",
+    "final_training/dctmlp/config9",
+    "final_training/dctmlp/config10",
+    "final_training/dctmlp/config11",
+    "final_training/dctmlp/config12",
+]
+
+"""
+MODEL_DIRS = [
+    "final_training/window/config1",
+    "final_training/window/config2",
+    "final_training/window/config4",
+    "final_training/window/config6",
+    "final_training/window/config9",
+    "final_training/window/config10",
+    "final_training/window/config12",
+    "final_training/window/config13",
+    "final_training/window/config14",
+    "final_training/window/config15",
+    "final_training/window/config16",
+]
+MODEL_DIRS = [
+    "final_training/full/config1",
+    "final_training/full/config2",
+    "final_training/full/config3",
+    "final_training/full/config4",
+    "final_training/full/config5",
+    "final_training/full/config6",
+    "final_training/full/config7",
+    "final_training/full/config8",
+    "final_training/full/config9",
+    "final_training/full/config10",
+    "final_training/full/config12",
+    "final_training/full/config13",
+]
+"""
 
 SKIP_KEYS = {"sample_id", "action"}
 

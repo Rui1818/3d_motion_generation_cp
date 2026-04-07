@@ -53,7 +53,7 @@ def main():
                         help="Path to best_autoencoder.pt checkpoint.")
     parser.add_argument("--keypointtype", default="6d", choices=["6d", "openpose", "smpl"],
                         help="Keypoint representation type (must match autoencoder training).")
-    parser.add_argument("--input_motion_length", default=196, type=int,
+    parser.add_argument("--input_motion_length", default=60, type=int,
                         help="Window size in frames.")
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--num_workers", default=0, type=int)
