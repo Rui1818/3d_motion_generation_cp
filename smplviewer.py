@@ -352,6 +352,16 @@ def visualize_result(path):
     add_keypoints_result(np.load(path), v, "result")
     v.run()
 
+_DEFAULT_COLORS = [
+    (0.8, 0.1, 0.1, 1.0),  # red
+    (0.1, 0.1, 0.8, 1.0),  # blue
+    (0.1, 0.7, 0.1, 1.0),  # green
+    (0.8, 0.5, 0.0, 1.0),  # orange
+    (0.6, 0.0, 0.8, 1.0),  # purple
+    (0.0, 0.7, 0.7, 1.0),  # cyan
+]
+
+
 def capture_motion_frames(
     output_dir,
     smplseq_path=None,
@@ -361,29 +371,54 @@ def capture_motion_frames(
     size=(1920, 1080),
     prefix="frame",
     transparent=False,
+    colors=None,
 ):
     """
     Render individual motion frames to PNG images using the headless renderer.
 
     :param output_dir: Directory where the PNG images are saved.
-    :param smplseq_path: Path to an .npz file with SMPL-X parameters (optional).
-    :param keypoints_path: Path to a .npy keypoints file (optional).
+    :param smplseq_path: Path (or list of paths) to .npz files with SMPL-X parameters (optional).
+    :param keypoints_path: Path (or list of paths) to .npy keypoints files (optional).
+      Pass a list to render multiple skeletons in the same image.
     :param frame_indices: List of specific frame indices to capture. If None, uses n_frames
       evenly spaced frames (or all frames if n_frames is also None).
     :param n_frames: Number of evenly spaced frames to capture. Ignored when frame_indices is given.
     :param size: Render resolution as (width, height).
     :param prefix: Filename prefix for saved images.
     :param transparent: Render with transparent background (required for overlay_motion_frames).
+    :param colors: List of (R, G, B, A) colors, one per skeleton. Cycles through _DEFAULT_COLORS
+      when None.
     """
     os.makedirs(output_dir, exist_ok=True)
+
+    # Normalise single paths → lists so the rest of the code is uniform
+    if smplseq_path is None:
+        smplseq_paths = []
+    elif isinstance(smplseq_path, (str, os.PathLike)):
+        smplseq_paths = [smplseq_path]
+    else:
+        smplseq_paths = list(smplseq_path)
+
+    if keypoints_path is None:
+        keypoints_paths = []
+    elif isinstance(keypoints_path, (str, os.PathLike)):
+        keypoints_paths = [keypoints_path]
+    else:
+        keypoints_paths = list(keypoints_path)
+
+    total = len(smplseq_paths) + len(keypoints_paths)
+    if colors is None:
+        colors = [_DEFAULT_COLORS[i % len(_DEFAULT_COLORS)] for i in range(total)]
 
     v = HeadlessRenderer(size=size)
     C.smplx_models = "smpl_models/"
 
-    if smplseq_path is not None:
-        load_smpl_sequence(smplseq_path, v)
-    if keypoints_path is not None:
-        add_keypoints_result(np.load(keypoints_path), v, "Keypoints")
+    for i, path in enumerate(smplseq_paths):
+        load_smpl_sequence(path, v, name=f"SMPL_{i}")
+
+    for i, path in enumerate(keypoints_paths):
+        color = colors[len(smplseq_paths) + i]
+        add_keypoints_result(np.load(path), v, f"Keypoints_{i}", color=color)
 
     v._init_scene()
     v.scene.camera.load_cam()
@@ -541,10 +576,16 @@ if __name__ == "__main__":
     #visualize_result("C:/Users/Rui/Vorlesungskript/Master/Thesis/Thesis_project/results/dctmlp_30/config_dctmlp/best_model/generated_motion_concat_5.npy")
     
     """"""
+    # Pass a list of paths to overlay multiple skeletons in one image.
+    # Each skeleton gets a distinct color from _DEFAULT_COLORS (or supply your own via `colors=`).
+    pathlist=[
+        'test/generated_motion_concat_5.npy',
+        'test/generated_motion_concat_10.npy',
+    ]
     capture_motion_frames(
         output_dir="result_motion",
         smplseq_path=None,
-        keypoints_path="C:/Users/Rui/Vorlesungskript/Master/Thesis/Thesis_project/results/dctmlp_30/config_dctmlp/best_model/reference_motion_4.npy",
+        keypoints_path=pathlist,
         n_frames=10,
         size=(1920, 1080),
         prefix="frame",

@@ -159,6 +159,18 @@ def add_model_options(parser):
         type=float,
         help="Weight for translational velocity loss.",
     )
+    group.add_argument(
+        "--lambda_transl",
+        default=1.0,
+        type=float,
+        help="Weight for translation MSE loss (6d representation, c=135).",
+    )
+    group.add_argument(
+        "--lambda_rot",
+        default=1.0,
+        type=float,
+        help="Weight for rotation MSE loss (6d representation, c=135).",
+    )
     # MDM_MotionConditioned specific options
     group.add_argument(
         "--num_heads", default=8, type=int, help="Number of attention heads."

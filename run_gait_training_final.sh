@@ -35,11 +35,14 @@ run_training() {
     local motion_length=${13}
     local loss_func=${14}
     local use_dct=${15}
+    local lambda_transl=${16}
+    local lambda_rot=${17}
 
     echo "--- Starting Training: $save_dir ---"
     echo "Latent Dim: $latent_dim, Layers: $layers, Weight Decay: $weight_decay, Steps: $num_steps, LR: $lr"
     echo "Keypoint Type: $keypointtype, Cond Mask Prob: $cond_mask_prob, Lambda Rot Vel: $lambda_rot_vel, Lambda Transl Vel: $lambda_transl_vel"
     echo "Motion N Features: $motionnfeatures, LR Anneal: $lr_anneal, Motion Length: $motion_length, Loss Func: $loss_func, Use DCT: $use_dct"
+    echo "Lambda Transl: $lambda_transl, Lambda Rot: $lambda_rot"
 
     python gait_crossval.py \
         --save_dir "$save_dir" \
@@ -65,6 +68,8 @@ run_training() {
         --sparse_dim "$motionnfeatures" \
         --lr_anneal_steps "$lr_anneal" \
         --loss_func "$loss_func" \
+        --lambda_transl "${lambda_transl:-1.0}" \
+        --lambda_rot "${lambda_rot:-1.0}" \
         ${use_dct:+--use_dct} \
         --overwrite
 
@@ -147,32 +152,38 @@ run_training() {
 #run_training "final_training/full/config14" 512 8 1e-4 80000 2e-4 6d 0 0.5 0.5 135 20000 240 softdtw
 
 #transformers 
-run_training "my_training/transformer/config1" 512 8 1e-4 70000 2e-4 openpose 0 0 0 69 30000 30 mse
-run_training "my_training/transformer/config2" 512 8 1e-4 70000 2e-4 openpose 0 1 0 69 30000 30 mse
-run_training "my_training/transformer/config3" 512 8 1e-4 70000 2e-4 openpose 0 0 0.5 69 30000 60 mse
-run_training "my_training/transformer/config4" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 60 mse
-run_training "my_training/transformer/config5" 512 8 1e-4 70000 2e-4 6d 0 0 0 135 30000 30 mse
-run_training "my_training/transformer/config6" 512 8 1e-4 70000 2e-4 6d 0 0.5 0.5 135 30000 30 mse
-run_training "my_training/transformer/config7" 512 8 1e-4 70000 2e-4 6d 0 0.1 0.5 135 30000 60 mse
-run_training "my_training/transformer/config8" 512 8 1e-4 70000 2e-4 6d 0.05 0.1 0.5 135 30000 60 mse
-run_training "my_training/transformer/config9" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 60 softdtw
-run_training "my_training/transformer/config10" 512 8 1e-4 70000 2e-4 6d 0.1 0.5 0.5 135 30000 60 softdtw
-run_training "my_training/transformer/config11" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 30 softdtw
-run_training "my_training/transformer/config12" 512 8 1e-4 70000 2e-4 6d 0.1 0.5 0.5 135 30000 30 softdtw
+#run_training "my_training/transformer/config1" 512 8 1e-4 70000 2e-4 openpose 0 0 0 69 30000 30 mse
+#run_training "my_training/transformer/config2" 512 8 1e-4 70000 2e-4 openpose 0 1 0 69 30000 30 mse
+#run_training "my_training/transformer/config3" 512 8 1e-4 70000 2e-4 openpose 0 0 0.5 69 30000 60 mse
+#run_training "my_training/transformer/config4" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 60 mse
+#run_training "my_training/transformer/config5" 512 8 1e-4 70000 2e-4 6d 0 0 0 135 30000 30 mse
+#run_training "my_training/transformer/config6" 512 8 1e-4 70000 2e-4 6d 0 0.5 0.5 135 30000 30 mse
+#run_training "my_training/transformer/config7" 512 8 1e-4 70000 2e-4 6d 0 0.1 0.5 135 30000 60 mse
+#run_training "my_training/transformer/config8" 512 8 1e-4 70000 2e-4 6d 0.05 0.1 0.5 135 30000 60 mse
+#run_training "my_training/transformer/config9" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 60 softdtw
+#run_training "my_training/transformer/config10" 512 8 1e-4 70000 2e-4 6d 0.1 0.5 0.5 135 30000 60 softdtw
+#run_training "my_training/transformer/config11" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 30 softdtw
+#run_training "my_training/transformer/config12" 512 8 1e-4 70000 2e-4 6d 0.1 0.5 0.5 135 30000 30 softdtw
 
 
-run_training "final_training/dcttransformer/config1" 512 8 1e-4 70000 2e-4 openpose 0 0 0 69 30000 30 mse True
-run_training "final_training/dcttransformer/config2" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 30 mse True
-run_training "final_training/dcttransformer/config3" 512 8 1e-4 70000 2e-4 openpose 0 0 0.5 69 30000 60 mse True
-run_training "final_training/dcttransformer/config4" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 60 mse True
-run_training "final_training/dcttransformer/config5" 512 8 1e-4 70000 2e-4 6d 0 0 0 135 30000 30 mse True
-run_training "final_training/dcttransformer/config6" 512 8 1e-4 70000 2e-4 6d 0 0.5 0.5 135 30000 30 mse True
-run_training "final_training/dcttransformer/config7" 512 8 1e-4 70000 2e-4 6d 0.05 0.1 0.5 135 30000 60 mse True
-run_training "final_training/dcttransformer/config8" 512 8 1e-4 70000 2e-4 6d 0 0.1 0.5 135 30000 60 mse True
-run_training "final_training/dcttransformer/config9" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 60 softdtw True
-run_training "final_training/dcttransformer/config10" 512 8 1e-4 70000 2e-4 6d 0.1 0.5 0.5 135 30000 60 softdtw True
-run_training "final_training/dcttransformer/config11" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 30 softdtw True
-run_training "final_training/dcttransformer/config12" 512 8 1e-4 70000 2e-4 6d 0.1 0.5 0.5 135 30000 30 softdtw True
+#run_training "final_training/dcttransformer/config1" 512 8 1e-4 70000 2e-4 openpose 0 0 0 69 30000 30 mse True
+#run_training "final_training/dcttransformer/config2" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 30 mse True
+#run_training "final_training/dcttransformer/config3" 512 8 1e-4 70000 2e-4 openpose 0 0 0.5 69 30000 60 mse True
+#run_training "final_training/dcttransformer/config4" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 60 mse True
+#run_training "final_training/dcttransformer/config5" 512 8 1e-4 70000 2e-4 6d 0 0 0 135 30000 30 mse True
+#run_training "final_training/dcttransformer/config6" 512 8 1e-4 70000 2e-4 6d 0 0.5 0.5 135 30000 30 mse True
+#run_training "final_training/dcttransformer/config7" 512 8 1e-4 70000 2e-4 6d 0.05 0.1 0.5 135 30000 60 mse True
+#run_training "final_training/dcttransformer/config8" 512 8 1e-4 70000 2e-4 6d 0 0.1 0.5 135 30000 60 mse True
+#run_training "final_training/dcttransformer/config9" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 60 softdtw True
+#run_training "final_training/dcttransformer/config10" 512 8 1e-4 70000 2e-4 6d 0.1 0.5 0.5 135 30000 60 softdtw True
+#run_training "final_training/dcttransformer/config11" 512 8 1e-4 70000 2e-4 openpose 0.1 1 0 69 30000 30 softdtw True
+#run_training "final_training/dcttransformer/config12" 512 8 1e-4 70000 2e-4 6d 0.1 0.5 0.5 135 30000 30 softdtw True
+
+
+run_training "final_training/weighttransformer/config1" 512 8 1e-4 70000 2e-4 6d 0 0 0 135 30000 30 mse "" 1.0 1.0
+run_training "final_training/weighttransformer/config2" 512 8 1e-4 70000 2e-4 6d 0 0 0 135 30000 30 mse "" 5.0 1.0
+run_training "final_training/weighttransformer/config3" 512 8 1e-4 70000 2e-4 6d 0 0 0 135 30000 30 mse "" 1.0 0.5
+run_training "final_training/weighttransformer/config4" 512 8 1e-4 70000 2e-4 6d 0 0 0 135 30000 30 mse "" 5.0 0.5
 
 
 echo "--- All Experiments Finished ---"

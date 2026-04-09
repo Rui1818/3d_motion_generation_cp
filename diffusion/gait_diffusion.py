@@ -61,6 +61,8 @@ class GaitDiffusionModel(GaussianDiffusion):
     ):
         self.lambda_rot_vel = kwargs.pop("lambda_rot_vel", 0.0)
         self.lambda_transl_vel = kwargs.pop("lambda_transl_vel", 0.0)
+        self.lambda_transl = kwargs.pop("lambda_transl", 1.0)
+        self.lambda_rot = kwargs.pop("lambda_rot", 1.0)
         self.soft_dtw_gamma = kwargs.pop("soft_dtw_gamma", 1.0)
         self.soft_dtw_normalize = kwargs.pop("soft_dtw_normalize", False)
         self.loss_func = kwargs.pop("loss_func", "mse")  # "mse" or "softdtw"
@@ -216,11 +218,13 @@ class GaitDiffusionModel(GaussianDiffusion):
 
             assert model_output.shape == target.shape == x_start.shape
 
-            terms["simple_mse"] = loss_func(
-                target,
-                model_output,
-                seq_len,
-            )
+            _,_,c_check = target.shape
+            if c_check == 135:
+                terms["simple_transl_mse"] = loss_func(target[:, :, :3], model_output[:, :, :3], seq_len)
+                terms["simple_rot_mse"] = loss_func(target[:, :, 3:], model_output[:, :, 3:], seq_len)
+                terms["simple_mse"] = self.lambda_transl * terms["simple_transl_mse"] + self.lambda_rot * terms["simple_rot_mse"]
+            else:
+                terms["simple_mse"] = loss_func(target, model_output, seq_len)
 
             if self.lambda_rot_vel > 0.0 or self.lambda_transl_vel > 0.0:
                 #velocity loss
