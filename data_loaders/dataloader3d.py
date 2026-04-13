@@ -130,8 +130,8 @@ class MotionDataset(Dataset):
         self.no_normalization = no_normalization
         self.input_motion_length = input_motion_length
         self.use_dct = use_dct
-        self.dct_mean = dct_mean  # shape (T, D) — per-frequency-band mean
-        self.dct_std = dct_std    # shape (T, D) — per-frequency-band std
+        self.dct_mean = dct_mean
+        self.dct_std = dct_std    
 
         # motion_clean and motion_without_orth are now dictionaries
         # with keys as action identifiers (e.g., 's01_a1')
@@ -201,12 +201,6 @@ class MotionDataset(Dataset):
             motion = sample_matching_startframe(motion, self.matching_dict, key, sampleidx_wo, self.input_motion_length)
         else:
             motion, _ = self._get_window(motion, self.input_motion_length)
-
-        """
-        # Normalization
-        if not self.no_normalization:
-            motion = (motion - self.mean) / (self.std + 1e-8)
-        """
         seqlen = seqlen if seqlen < self.input_motion_length else self.input_motion_length
 
         motion = motion.float()

@@ -320,6 +320,16 @@ def repair_data(data):
         data[:,1,:]=neck
     return data
 
+def subtract_root(data):
+    #only after frames have been cut
+    if data.shape[1]==25:
+        root = (data[0,8,:]+data[0, 9, :])/2
+        data=np.delete((data - root), (1,8), axis=1)
+    elif data.shape[1]==22:
+        root = data[0,0,:]
+        data=data - root
+    return data
+
 def add_keypoints_result(data, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
     # Load keypoints
     keypoints = data
@@ -333,6 +343,8 @@ def add_keypoints_result(data, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
     )
 
     if keypoints.shape[1]==25:
+        keypoints=subtract_root(keypoints)
+        keypoints=repair_data(keypoints)
         skeleton=BODY25Skeletons(keypoints, name=thisname, color=color)
         viewer.scene.add(skeleton)
     elif keypoints.shape[1]==22:
@@ -346,11 +358,6 @@ def add_keypoints_result(data, viewer, thisname, color=(1.0, 0.0, 0.0, 1)):
         viewer.scene.add(keypoints_pc)
     return
 
-def visualize_result(path):
-
-    v=Viewer()
-    add_keypoints_result(np.load(path), v, "result")
-    v.run()
 
 _DEFAULT_COLORS = [
     (0.8, 0.1, 0.1, 1.0),  # red
@@ -372,6 +379,7 @@ def capture_motion_frames(
     prefix="frame",
     transparent=False,
     colors=None,
+    viewer=None,
 ):
     """
     Render individual motion frames to PNG images using the headless renderer.
@@ -389,6 +397,9 @@ def capture_motion_frames(
     :param colors: List of (R, G, B, A) colors, one per skeleton. Cycles through _DEFAULT_COLORS
       when None.
     """
+    if os.path.exists(output_dir):
+        for f in os.listdir(output_dir):
+            os.remove(os.path.join(output_dir, f))
     os.makedirs(output_dir, exist_ok=True)
 
     # Normalise single paths → lists so the rest of the code is uniform
@@ -410,8 +421,16 @@ def capture_motion_frames(
     if colors is None:
         colors = [_DEFAULT_COLORS[i % len(_DEFAULT_COLORS)] for i in range(total)]
 
-    v = HeadlessRenderer(size=size)
-    C.smplx_models = "smpl_models/"
+    if viewer is None:
+        v = HeadlessRenderer(size=size)
+        C.smplx_models = "smpl_models/"
+        v._default_nodes = list(v.scene.nodes)
+    else:
+        v = viewer
+        default_nodes = getattr(v, '_default_nodes', [])
+        for node in list(v.scene.nodes):
+            if node not in default_nodes:
+                v.scene.remove(node)
 
     for i, path in enumerate(smplseq_paths):
         load_smpl_sequence(path, v, name=f"SMPL_{i}")
@@ -504,97 +523,104 @@ def overlay_motion_frames(
     Image.fromarray(np.clip(canvas, 0, 255).astype(np.uint8), "RGB").save(output_path)
     print(f"Saved overlay image ({n} frames) → {output_path}")
 
+def visualize_result(folder_path, condition_path=None):
+    v = Viewer()
+    npy_files = sorted(glob.glob(os.path.join(folder_path, "*.npy")))
+    pathcondition=condition_path
+    cond=np.load(pathcondition)
+    cond=repair_data(cond)
+    cond=subtract_root(cond)
+    for i, path in enumerate(npy_files):
+        name = os.path.splitext(os.path.basename(path))[0]
+        color = _DEFAULT_COLORS[i % len(_DEFAULT_COLORS)]
+        if "generated_motion_concat_" in name or "reference_motion_" in name:
+            add_keypoints_result(np.load(path), v, name, color=color)
+    add_keypoints_result(cond, v, 'condition', color=color)
+    v.run()
 
-def merge_motion_frames(
-    frame_dir,
-    output_path,
-    prefix="frame",
-    cols=None,
-    padding=10,
-    bg_color=(255, 255, 255),
-):
-    """
-    Merge captured frame images into a single composite image.
-
-    Frames are arranged left-to-right in a single row by default. Set `cols`
-    to wrap into a grid (e.g. cols=5 gives a 2-row grid for 10 frames).
-
-    :param frame_dir: Directory containing the PNG frames.
-    :param output_path: Output file path (e.g. "motion_strip.png").
-    :param prefix: Filename prefix used when capturing (must match capture_motion_frames).
-    :param cols: Number of columns. None = all frames in one row.
-    :param padding: Pixel gap between frames and around the border.
-    :param bg_color: Background color as (R, G, B).
-    """
-    paths = sorted(glob.glob(os.path.join(frame_dir, f"{prefix}_*.png")))
-    if not paths:
-        raise FileNotFoundError(f"No frames matching '{prefix}_*.png' found in '{frame_dir}'")
-
-    frames = [Image.open(p) for p in paths]
-    fw, fh = frames[0].size
-
-    n = len(frames)
-    ncols = n if cols is None else cols
-    nrows = (n + ncols - 1) // ncols
-
-    canvas_w = ncols * fw + (ncols + 1) * padding
-    canvas_h = nrows * fh + (nrows + 1) * padding
-
-    canvas = Image.new("RGB", (canvas_w, canvas_h), bg_color)
-
-    for i, img in enumerate(frames):
-        row, col = divmod(i, ncols)
-        x = padding + col * (fw + padding)
-        y = padding + row * (fh + padding)
-        canvas.paste(img, (x, y))
-
-    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-    canvas.save(output_path)
-    print(f"Saved composite image ({ncols}x{nrows}) → {output_path}")
 
 
 if __name__ == "__main__":
     # Set the path to your SMPL models
     C.smplx_models = "smpl_models/"
+    C.playback_fps = 30
 
-    root="mydataset"
-    #root="test_dataset"
-    smplpart="split_subjects/0/fit-smplx/smplx-params.npz"
-    keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
-    fin_take="_a4_Take2"
-    take="gait_753/20250617_c1"+fin_take
-    ref_take="gait_753/20250617_c2"+fin_take
-    keypoints_path = os.path.join(root, take, keypointspart)
-    keypoints_path2 = os.path.join(root, ref_take, keypointspart)
-    condition_path = os.path.join(root, "gait_753/20250617_c2_a4_Take2", "split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy")
-    smplseq= os.path.join(root, take, smplpart)
-    smplseq2= os.path.join(root, ref_take, smplpart)
+    root="final_mydataset"
     #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
     #visualize_smpl_keypoints(smplseq)
     #visualize_gait_batch(root+"/gait_114")
     #visualize_gait('test.npy')
-    #visualize_result("C:/Users/Rui/Vorlesungskript/Master/Thesis/Thesis_project/results/dctmlp_30/config_dctmlp/best_model/generated_motion_concat_5.npy")
+    condition=os.path.join("final_dataset/gait_983/20251222_c2_a5_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy")
+    visualize_result("test/weightmlp_rot", condition_path=condition)
     
-    """"""
-    # Pass a list of paths to overlay multiple skeletons in one image.
-    # Each skeleton gets a distinct color from _DEFAULT_COLORS (or supply your own via `colors=`).
-    pathlist=[
-        'test/generated_motion_concat_5.npy',
-        'test/generated_motion_concat_10.npy',
+
+    """
+    (0.8, 0.1, 0.1, 1.0),  # red, gen
+    (0.1, 0.1, 0.8, 1.0),  # blue, cond
+    (0.1, 0.7, 0.1, 1.0),  # green, ref
+    model="window_rot2"
+    pathlista3=[
+        (['test/' + model + '/generated_motion_concat_12.npy'], (0.8, 0.1, 0.1, 1.0), 'motion_turn_key'),
+        (['test/' + model + '/reference_motion_11.npy'], (0.1, 0.7, 0.1, 1.0), 'motion_turn_key_ref'),
+        (["final_dataset/gait_983/20251222_c2_a3_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"], (0.1, 0.1, 0.8, 1.0), 'motion_turn_key_cond'),
     ]
-    capture_motion_frames(
-        output_dir="result_motion",
-        smplseq_path=None,
-        keypoints_path=pathlist,
-        n_frames=10,
-        size=(1920, 1080),
-        prefix="frame",
-    )
+    pathlista4=[
+        (['test/' + model + '/generated_motion_concat_15.npy'], (0.8, 0.1, 0.1, 1.0), 'motion_cross_key'),
+        (['test/' + model + '/reference_motion_14.npy'], (0.1, 0.7, 0.1, 1.0), 'motion_cross_key_ref'),
+        (["final_dataset/gait_983/20251222_c2_a4_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"], (0.1, 0.1, 0.8, 1.0), 'motion_cross_key_cond'),
+    ]
+    pathlista5=[
+        (['test/' + model + '/generated_motion_concat_17.npy'], (0.8, 0.1, 0.1, 1.0), 'motion_pick_key'),
+        (['test/' + model + '/reference_motion_17.npy'], (0.1, 0.7, 0.1, 1.0), 'motion_pick_key_ref'),
+        (["final_dataset/gait_983/20251222_c2_a5_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"], (0.1, 0.1, 0.8, 1.0), 'motion_pick_key_cond'),
+    ]
+    """
+    """
+    rotlist=["test/transformer_rot2/generated_motion_concat_5.npy", 
+             "test/transformer_rot2/generated_motion_concat_11.npy",
+             "test/transformer_rot2/generated_motion_concat_13.npy",
+             "test/transformer_rot2/generated_motion_concat_18.npy",]
     
-    overlay_motion_frames(
-        frame_dir="result_motion",
-        output_path="motion_overlay.png",
-        colormap="cool",
-        alpha=0.6,
-    )
+    headless_v = HeadlessRenderer(size=(1920, 1080))
+    headless_v._default_nodes = list(headless_v.scene.nodes)
+    for path in rotlist:
+        capture_motion_frames(
+            output_dir="result_motion",
+            smplseq_path=None,
+            keypoints_path=[path],
+            n_frames=10,
+            size=(1920, 1080),
+            prefix="frame",
+            colors=[(0.8, 0.1, 0.1, 1.0)],
+            viewer=headless_v,
+        )
+
+        overlay_motion_frames(
+            frame_dir="result_motion",
+            output_path=os.path.basename(path).replace(".npy", "_overlay.png"),
+            colormap="cool",
+            alpha=0.6,
+        )
+    C.smplx_models = "smpl_models/"
+    pathlist=[pathlista3, pathlista4, pathlista5]
+    for pathgroup in pathlist:
+      for path, color, name in pathgroup:
+        capture_motion_frames(
+            output_dir="result_motion",
+            smplseq_path=None,
+            keypoints_path=path,
+            n_frames=10,
+            size=(1920, 1080),
+            prefix="frame",
+            colors=[color],
+            viewer=headless_v,
+        )
+
+        overlay_motion_frames(
+            frame_dir="result_motion",
+            output_path=name+".png",
+            colormap="cool",
+            alpha=0.6,
+        )
+    """
 
