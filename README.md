@@ -4,16 +4,19 @@ Master's Thesis project
 
 This project trains a diffusion model to generate corrected 3D gait motions (with orthosis) conditioned on the pathological gait of a patient. The model is evaluated on a dataset of 15 subjects using 5-fold subject-level cross-validation.
 
-The diffusion model code is adapted from [AGRoL](https://github.com/facebookresearch/AGRoL) (Du et al., CVPR 2023).
+The diffusion model code is based on the Guided diffusion framework from OpenAI: https://github.com/openai/guided-diffusion/tree/main.
 
 ---
 
 ## Environment Setup
 
+
 ```bash
 conda env create -f environment.yml
 conda activate gait3d
 ```
+
+Additionally download the [SMPL](https://smpl.is.tue.mpg.de/) model and place it into a folder called "smpl_models".
 
 ---
 
@@ -24,21 +27,16 @@ Thesis_project/
 ├── gait_train.py              # Single-run training
 ├── gait_crossval.py           # 5-fold cross-validation training
 ├── gait_crossval_eval.py      # Cross-validation evaluation
-├── gait_generate.py           # Motion generation + metric computation
+├── subject_generate.py        # Motion generation file
 ├── train_autoencoder.py       # Train autoencoder for FID computation
-├── compute_fid.py             # Standalone FID computation
+├── data_preprocess.py         # Data preprocessing utilities (rotation, frame trimming)
 ├── plot_crossval_loss.py      # Plot training/validation loss curves
-├── summarize_crossval.py      # Summarize cross-val metrics across folds
-├── run_gait_training_final.sh # Main experiment runner (calls gait_crossval.py)
-├── run_crossval_eval.sh       # Evaluation runner (calls gait_crossval_eval.py)
-├── data_loaders/              # Dataset and dataloader
+├── data_loaders/              # Dataloader for the model
 ├── diffusion/                 # Diffusion process (DDPM, Gaussian diffusion)
 ├── model/                     # DiffMLP and DiffTransformer architectures
 ├── runner/                    # Training loop
-├── utils/                     # Metrics, transforms, rotation utils, DCT
-├── final_dataset/             # Training data (subject folders)
-├── test_dataset/              # Held-out test data
-└── results/                   # Generated motions and metrics
+├── utils/                     # Metrics, transforms, rotation utils, DCT, Arguments for runner
+└── final_dataset/             # Training/Test data (subject folders)
 ```
 
 ---
@@ -51,14 +49,14 @@ The dataset contains 3D gait recordings from 15 subjects. Each subject folder ho
 
 Two motion representations are supported:
 - `openpose` — 23 joints × 3 coordinates (69-dim)
-- `6d` — 6D rotation representation + translation (135-dim)
+- `6d` — 132 dimensional 6D rotation representation + 3 dimensional translation (135-dim in total)
 
 The dataset should be placed at `final_dataset/`, with one sub-folder per subject:
 
 ```
 final_dataset/
-├── subject_01/
-├── subject_02/
+├── gait_01/
+├── gait_02/
 └── ...
 ```
 
@@ -68,13 +66,9 @@ final_dataset/
 
 ### Cross-validation (recommended)
 
-Runs 5-fold subject-level cross-validation using `gait_crossval.py`. Use the provided shell script to reproduce experiments:
+Runs 5-fold subject-level cross-validation using `gait_crossval.py`. 
 
-```bash
-bash run_gait_training_final.sh
-```
-
-Or run a single configuration manually:
+To run a single example configuration:
 
 ```bash
 python gait_crossval.py \
@@ -160,19 +154,7 @@ python gait_generate.py \
     --output_dir results/generated
 ```
 
-Metrics computed per sample: MPJPE, PAMPJPE, DTW (geodesic and trajectory), jitter.
-
-### Summarize results
-
-```bash
-python summarize_crossval.py
-```
-
-### Plot training curves
-
-```bash
-python plot_crossval_loss.py
-```
+Metrics computed per sample: MPJPE, PAMPJPE, MPJRE (only for 6d samples), jitter.
 
 ---
 
@@ -189,27 +171,19 @@ python train_autoencoder.py \
     --save_dir checkpoints/autoencoder
 ```
 
-**2. Compute FID** (standalone, or done automatically in `gait_crossval_eval.py`):
+**2. Compute FID** (done automatically in `gait_crossval_eval.py`):
 
-```bash
-python compute_fid.py \
-    --autoencoder_path checkpoints/autoencoder/best_autoencoder.pt \
-    --real_dir final_dataset \
-    --generated_dir results/generated
-```
+FID is computed automatically during cross-validation evaluation. Pass `--autoencoder_path` to `gait_crossval_eval.py` to enable it.
 
 ---
 
 ## Visualization
 
-Three interactive viewers are provided (require [aitviewer](https://github.com/eth-siplab/AitViewer)):
+Two interactive viewers are provided (require [aitviewer](https://github.com/eth-siplab/AitViewer)):
 
 ```bash
 # View generated skeleton motions
 python generationviewer.py
-
-# View skeleton from .npy file
-python skeletonviewer.py
 
 # View SMPL-X body model
 python smplviewer.py
@@ -219,8 +193,12 @@ python smplviewer.py
 
 ## Credits
 
-The diffusion model architecture and training loop are adapted from:
+The core architecture is adapted from:
 
 > **Avatars Grow Legs: Generating Smooth Human Motion from Sparse Tracking Inputs with Diffusion Model**
-> Y. Du, R. Kips, A. Pumarola, S. Starke, A. Thabet, A. Sanakoyeu — CVPR 2023
+> Y. Du, R. Kips, A. Pumarola, S. Starke, A. Thabet, A. Sanakoyeu
 > [[Paper]](https://arxiv.org/abs/2304.08577) [[Code]](https://github.com/facebookresearch/AGRoL)
+
+> **MDM: Human Motion Diffusion Model**
+> G. Tevet, S. Raab, B. Gordon, Y. Shafir, D. Cohen-Or, A. Bermano
+> [[Paper]](https://arxiv.org/abs/2209.14916) [[Code]](https://github.com/GuyTevet/motion-diffusion-model/)

@@ -16,7 +16,6 @@ Outputs (in output_dir):
 """
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 import re
 import json
@@ -34,8 +33,6 @@ from gait_generate import (
     load_diffusion_model,
 )
 
-
-# ── Checkpoint helpers (mirrors gait_crossval_eval.py) ──────────────────────
 
 def find_latest_checkpoint(fold_dir):
     ckpts = [f for f in os.listdir(fold_dir) if re.match(r"model\d+\.pt$", f)]

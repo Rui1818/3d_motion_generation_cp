@@ -1,5 +1,4 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # Set the GPU device to use (change as needed)
 import random
 from tslearn.metrics import dtw_path_from_metric
 import numpy as np
@@ -19,8 +18,6 @@ def load_diffusion_model(args):
     Loads the diffusion model and its configuration from a checkpoint.
     """
     print("Creating model and diffusion...")
-    # The model architecture is stored with a prefix e.g., "diffusion_DiffMLP"
-    # We need to remove the prefix to get the actual architecture name.
     if args.arch.startswith("diffusion_"):
         args.arch = args.arch[len("diffusion_"):]
     
@@ -31,7 +28,7 @@ def load_diffusion_model(args):
     load_model_wo_clip(model, state_dict)
 
     model.to("cuda:0")
-    model.eval()  # Set model to evaluation mode
+    model.eval() 
     return model, diffusion
 
 def prepare_conditional_motion(file_path, input_motion_length, keypointtype):
@@ -234,6 +231,7 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, dct_st
             generated_window_aligned = change_motion_position(generated_window_aligned, offset=frame_offset, overlapframe=overlaplen-1)
             
             generated_window_overlap = generated_window_aligned[:, :overlaplen, :]
+            # Blend the overlapping regions
             generated_window_blended = linear_blend_motion(previously_generated_overlap, generated_window_overlap)
             generated_motion_concat_tensor[:, -overlaplen:, :] = generated_window_blended
             generated_window_slice = generated_window_aligned[:, -frames_to_take:, :]
@@ -256,6 +254,7 @@ def transform_motion_back(args, betas, generated_motion_np, reference_np):
     if args.keypointtype=='6d':
         assert generated_motion_np.shape[1]==135
         betas_np=betas.squeeze(0).cpu().numpy()
+        #optionally smooth the motion if jitter is high
         #generated_motion_np = gaussian_filter1d(generated_motion_np, sigma=1, axis=0)
         generated_motion_np=sixd_to_smplx({'motion_6d': generated_motion_np[:,3:], 'transl': generated_motion_np[:,:3], 'betas': betas_np})
         if reference_np is not None:
@@ -329,9 +328,9 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         ref_transl = reference_np[:, :3] - reference_np[0:1, :3]
         gen_transl = generated_motion_np[:, :3] - generated_motion_np[0:1, :3]
         path, traj=dtw_path_from_metric(ref_transl, gen_transl) # translation part, root-normalised
-        traj=traj/len(path)  # normalize by length of path
+        traj=traj/len(path) 
         path, dtw_distance_geodesic=dtw_path_from_metric(ref_sixd, gen_sixd, metric=pose_distance_metric)
-        dtw_distance_geodesic=dtw_distance_geodesic/len(path)  # normalize by length of path
+        dtw_distance_geodesic=dtw_distance_geodesic/len(path) 
         res={'sample_id': index, 'MPJRE':dtw_distance_geodesic, 'dtw_distance_transl': traj}
         return res
     elif keypointtype=='6d_transformed':
@@ -339,7 +338,7 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         generated_motion_np=change_motion_position(generated_motion_np)
         reference_np=change_motion_position(reference_np)
         path, mpjpe=dtw_path_from_metric(reference_np.reshape(-1,66), generated_motion_np.reshape(-1,66), metric=mpjpe_distance_metric)
-        mpjpe=mpjpe/len(path)  # normalize by length of path
+        mpjpe=mpjpe/len(path) 
         
         jitter=calculate_jitter(generated_motion_np)
 
@@ -348,7 +347,7 @@ def calculate_metrics(reference_np, generated_motion_np, keypointtype, index):
         gen=generated_motion_np.reshape(-1,66)
         ref=reference_np.reshape(-1,66)
         path, pampjpe=dtw_path_from_metric(ref, gen, metric=pampjpe_distance_metric)
-        pampjpe=pampjpe/len(path)  # normalize by length of path
+        pampjpe=pampjpe/len(path) 
         return mpjpe, pampjpe, jitter
     else:
         raise ValueError("Unknown keypoint type for DTW calculation.")
@@ -392,7 +391,7 @@ def main():
     print(f"Using sliding window: {use_sliding_window}")
 
 
-    #TODO change sample dataset
+    #TODO insert your test dataset path
     file_path = "test_dataset"
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Conditional motion file not found: {file_path}")
@@ -420,8 +419,6 @@ def main():
         #betas shape: (1,frames, 10/11)|_
         reference, condition, betas, _, _ = batch
         condition=condition.to(device)
-        #print(reference.shape, condition.shape)  # shapes of the batch
-        #print(f"Condition motion shape: {condition.shape}")
         ref_path=os.path.join(args.output_dir, "reference_motion_"+str(i)+".npy")
         gen_path=os.path.join(args.output_dir, "generated_motion_"+str(i)+".npy")
         res={}

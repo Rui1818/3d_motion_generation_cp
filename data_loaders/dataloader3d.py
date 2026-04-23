@@ -60,6 +60,7 @@ def load_6drotations(motion_6dpath, motionlist):
     return motionlist, betas
 
 def normalize_motion(motion):
+    #root normalization of the motion
     #motion: tensor (frames, dim)
     if motion.shape[1]==69:
         motion=motion.reshape(-1,23,3)
@@ -72,6 +73,8 @@ def normalize_motion(motion):
     return motion
 
 def sample_matching_startframe(motion_clean, match_dict, key, idx, window_size):
+    #sample the starting frame of the matching window using the precalculated matching dict
+    
     _ , matching_frame = match_dict[key][idx]
     seqlen = motion_clean.shape[0]
     #padding if needed

@@ -142,9 +142,8 @@ def load_smpl_sequence(smplseq_path, v, name="SMPL-X Sequence"):
     left_hand_pose = data['left_hand_pose'] # (419, 12) - PCA components
     right_hand_pose = data['right_hand_pose'] # (419, 12) - PCA components
         
-    #print(f"Loaded sequence with {body_pose.shape[0]} frames")
         
-        # Create SMPL-X layer with PCA hand pose support
+    # Create SMPL-X layer with PCA hand pose support
     if betas.shape[1]==11:
         smpl_layer = SMPLLayer(
                 model_type="smplx", 
@@ -168,8 +167,8 @@ def load_smpl_sequence(smplseq_path, v, name="SMPL-X Sequence"):
                 flat_hand_mean=False
         )
         
-        # Create SMPL-X sequence
-        # When use_pca=True, the layer expects 12-dimensional hand poses
+    # Create SMPL-X sequence
+    # When use_pca=True, the layer expects 12-dimensional hand poses
     smpl_sequence = SMPLSequence(
             poses_body=body_pose,
             poses_root=global_orient,
@@ -258,7 +257,6 @@ def visualize_smpl_keypoints(smplkeypoints_path):
     all_joints=np.concatenate((all_joints,right[:,np.newaxis,:]),axis=1)
     all_joints=np.concatenate((all_joints,left[:,np.newaxis,:]),axis=1)
     
-    #indx 43
     print(f"Extracted joints shape: {all_joints.shape}")
     
     # Create point cloud from SMPL joints
@@ -266,7 +264,7 @@ def visualize_smpl_keypoints(smplkeypoints_path):
         all_joints,
         name="SMPL Joints",
         point_size=10.0,
-        color=(0.0, 0.0, 0.0, 1.0)  # Black color
+        color=(0.0, 0.0, 0.0, 1.0) 
     )
     v=Viewer()
     v.scene.add(smpl_sequence)
@@ -286,23 +284,19 @@ def visualize_gait_batch(root):
     for take in os.listdir(root):
         cond=take.split("_")
         
-        if cond[2]!="a5":
-            continue
         if cond[1]=="c1":
             c2 = cond[0]+'_c2_'+"_".join(cond[2:])
             keypointspart="split_subjects/0/keypoints_3d/smpl-keypoints-3d_cut.npy"
             #keypointspart="split_subjects/0/fit-smplx/smpl-keypoints-3d_cut.npy"
             smplseqpart="split_subjects/0/fit-smplx/smplx-params_cut.npz"
-            #print(take)
-            #print(c2)
             keypoints_path = os.path.join(root, take, keypointspart)
             keypoints_path2 = os.path.join(root, c2, keypointspart)
             smplseq_path= os.path.join(root, take, smplseqpart)
             smplseq_reference_path= os.path.join(root, c2, smplseqpart)
             add_keypoints(keypoints_path, v, take)
             add_keypoints(keypoints_path2, v, c2, color=(0.0, 0.0, 1.0, 1))
-            load_smpl_sequence(smplseq_path, v, name=take)
-            load_smpl_sequence(smplseq_reference_path, v, name=c2)
+            #load_smpl_sequence(smplseq_path, v, name=take)
+            #load_smpl_sequence(smplseq_reference_path, v, name=c2)
     
     v.run()
     return
@@ -545,82 +539,8 @@ if __name__ == "__main__":
     C.smplx_models = "smpl_models/"
     C.playback_fps = 30
 
-    root="final_mydataset"
-    #visualize_gait(keypoints_path, reference_path=keypoints_path2, condition_path=condition_path, smplseq_path=None, smplseq_reference_path=None)
-    #visualize_smpl_keypoints(smplseq)
-    #visualize_gait_batch(root+"/gait_114")
-    #visualize_gait('test.npy')
+    root="final_dataset"
     condition=os.path.join("final_dataset/gait_983/20251222_c2_a5_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy")
-    visualize_result("test/weightmlp_rot", condition_path=condition)
-    
-
-    """
-    (0.8, 0.1, 0.1, 1.0),  # red, gen
-    (0.1, 0.1, 0.8, 1.0),  # blue, cond
-    (0.1, 0.7, 0.1, 1.0),  # green, ref
-    model="window_rot2"
-    pathlista3=[
-        (['test/' + model + '/generated_motion_concat_12.npy'], (0.8, 0.1, 0.1, 1.0), 'motion_turn_key'),
-        (['test/' + model + '/reference_motion_11.npy'], (0.1, 0.7, 0.1, 1.0), 'motion_turn_key_ref'),
-        (["final_dataset/gait_983/20251222_c2_a3_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"], (0.1, 0.1, 0.8, 1.0), 'motion_turn_key_cond'),
-    ]
-    pathlista4=[
-        (['test/' + model + '/generated_motion_concat_15.npy'], (0.8, 0.1, 0.1, 1.0), 'motion_cross_key'),
-        (['test/' + model + '/reference_motion_14.npy'], (0.1, 0.7, 0.1, 1.0), 'motion_cross_key_ref'),
-        (["final_dataset/gait_983/20251222_c2_a4_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"], (0.1, 0.1, 0.8, 1.0), 'motion_cross_key_cond'),
-    ]
-    pathlista5=[
-        (['test/' + model + '/generated_motion_concat_17.npy'], (0.8, 0.1, 0.1, 1.0), 'motion_pick_key'),
-        (['test/' + model + '/reference_motion_17.npy'], (0.1, 0.7, 0.1, 1.0), 'motion_pick_key_ref'),
-        (["final_dataset/gait_983/20251222_c2_a5_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"], (0.1, 0.1, 0.8, 1.0), 'motion_pick_key_cond'),
-    ]
-    """
-    """
-    rotlist=["test/transformer_rot2/generated_motion_concat_5.npy", 
-             "test/transformer_rot2/generated_motion_concat_11.npy",
-             "test/transformer_rot2/generated_motion_concat_13.npy",
-             "test/transformer_rot2/generated_motion_concat_18.npy",]
-    
-    headless_v = HeadlessRenderer(size=(1920, 1080))
-    headless_v._default_nodes = list(headless_v.scene.nodes)
-    for path in rotlist:
-        capture_motion_frames(
-            output_dir="result_motion",
-            smplseq_path=None,
-            keypoints_path=[path],
-            n_frames=10,
-            size=(1920, 1080),
-            prefix="frame",
-            colors=[(0.8, 0.1, 0.1, 1.0)],
-            viewer=headless_v,
-        )
-
-        overlay_motion_frames(
-            frame_dir="result_motion",
-            output_path=os.path.basename(path).replace(".npy", "_overlay.png"),
-            colormap="cool",
-            alpha=0.6,
-        )
-    C.smplx_models = "smpl_models/"
-    pathlist=[pathlista3, pathlista4, pathlista5]
-    for pathgroup in pathlist:
-      for path, color, name in pathgroup:
-        capture_motion_frames(
-            output_dir="result_motion",
-            smplseq_path=None,
-            keypoints_path=path,
-            n_frames=10,
-            size=(1920, 1080),
-            prefix="frame",
-            colors=[color],
-            viewer=headless_v,
-        )
-
-        overlay_motion_frames(
-            frame_dir="result_motion",
-            output_path=name+".png",
-            colormap="cool",
-            alpha=0.6,
-        )
-    """
+    #visualize_result("test/weightmlp_rot", condition_path=condition)
+    visualize_gait_batch("final_dataset/gait_753")
 

@@ -1,5 +1,4 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import json
 import random
 
@@ -103,11 +102,6 @@ def main():
     dataloader = get_dataloader(
         dataset, "train", batch_size=args.batch_size, num_workers=args.num_workers
     )
-    # args.lr_anneal_steps = (
-    #    args.lr_anneal_steps // args.train_dataset_repeat_times
-    # ) * len(
-    #    dataloader
-    # )  # the input lr_anneal_steps is by epoch, here convert it to the number of steps
 
     # Load validation dataset
     print("Loading validation dataset...")
@@ -137,12 +131,7 @@ def main():
     #model_type = args.arch.split("_")[0]
     dct_stats = {"dct_mean": dct_mean, "dct_std": dct_std} if dct_mean is not None else None
     train_diffusion_model(args, dataloader, val_dataloader, dct_stats=dct_stats)
-    """
-    if model_type == "diffusion":
-        train_diffusion_model(args, dataloader)
-    elif model_type == "mlp":
-        train_mlp_model(args, dataloader)
-    """
+
 
 if __name__ == "__main__":
     main()
