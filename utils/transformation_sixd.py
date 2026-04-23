@@ -57,8 +57,6 @@ def smplx_to_6d(input_path, output_path=None):
     return motion
 
 def sixd_to_smplx(data):
-    #TODO: how to handle betas? Load 
-    #TODO read kid/adult smplx model correctly
     C.smplx_models = "smpl_models/"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # 1. Load the 6D rotation and translation data from the .npz file

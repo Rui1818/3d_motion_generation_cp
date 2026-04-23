@@ -233,7 +233,6 @@ def rotation_matrix_to_angle_axis(rotation_matrix):
         >>> input = torch.rand(2, 3, 4)  # Nx4x4
         >>> output = tgm.rotation_matrix_to_angle_axis(input)  # Nx3
     """
-    # todo add check that matrix is a valid rotation matrix
     quaternion = rotation_matrix_to_quaternion(rotation_matrix)
     return quaternion_to_angle_axis(quaternion)
 
@@ -420,11 +419,6 @@ def angle_axis_to_quaternion(angle_axis) -> torch.Tensor:
     quaternion[..., 2:3] += a2 * k
     return torch.cat([w, quaternion], dim=-1)
 
-# TODO: add below funtionalities
-#  - pose_to_rtvec
-
-
-# layer api
 
 
 class RadToDeg(nn.Module):
