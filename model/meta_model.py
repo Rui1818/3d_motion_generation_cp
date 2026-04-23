@@ -13,7 +13,7 @@ class MetaModel(nn.Module):
         latent_dim=256,
         num_layers=8,
         dropout=0.1,
-        sparse_dim=69,
+        cond_dim=69,
         **kargs,
     ):
         super().__init__()
@@ -25,7 +25,7 @@ class MetaModel(nn.Module):
         self.latent_dim = latent_dim
         self.num_layers = num_layers
         self.dropout = dropout
-        self.sparse_dim = sparse_dim
+        self.cond_dim = cond_dim
 
         self.cond_mask_prob = kargs.get("cond_mask_prob", 0.0)
         self.input_process = nn.Linear(self.input_feats, self.latent_dim)
@@ -34,7 +34,7 @@ class MetaModel(nn.Module):
             self.latent_dim, seq=kargs.get("input_motion_length"), num_layers=num_layers
         )
         self.embed_timestep = TimestepEmbeding(self.latent_dim)
-        self.sparse_process = nn.Linear(self.sparse_dim, self.latent_dim)
+        self.sparse_process = nn.Linear(self.cond_dim, self.latent_dim)
         self.output_process = nn.Linear(self.latent_dim, self.input_feats)
 
     def mask_cond_sparse(self, cond, force_mask=True):
@@ -54,7 +54,7 @@ class MetaModel(nn.Module):
     def forward(self, x, timesteps, sparse_emb, force_mask=False):
         """
         x: [batch_size, nfeats, nframes], denoted x_t in the paper
-        sparse: [batch_size, nframes, sparse_dim], the sparse features
+        sparse: [batch_size, nframes, cond_dim], the sparse features
         timesteps: [batch_size] (int)
         """
         emb = self.embed_timestep(timesteps)  # time step embedding : [1, bs, d]

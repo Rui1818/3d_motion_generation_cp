@@ -126,7 +126,7 @@ def add_model_options(parser):
         "--motion_nfeat", default=72, type=int, help="motion feature dimension"
     )
     group.add_argument(
-        "--sparse_dim", default=72, type=int, help="sparse signal feature dimension"
+        "--cond_dim", default=69, type=int, help="conditioning signal feature dimension"
     )
     group.add_argument("--layers", default=8, type=int, help="Number of layers.")
     group.add_argument(

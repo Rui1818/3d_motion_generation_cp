@@ -17,7 +17,7 @@ A compact export of all argparse options defined in utils/parser_util.py. Each l
 ## Model
 - `--arch` (str, default="DiffMLP") — model architecture name.
 - `--motion_nfeat` (int, default=132) — per-frame motion feature dimension.
-- `--sparse_dim` (int, default=54) — sparse conditioning feature dimension.
+- `--cond_dim` (int, default=54) — conditioning feature dimension.
 - `--layers` (int, default=8) — number of model layers.
 - `--latent_dim` (int, default=512) — model hidden / embedding width.
 - `--cond_mask_prob` (float, default=0.0) — probability to mask condition (classifier-free guidance).

@@ -79,7 +79,7 @@ python gait_crossval.py \
     --keypointtype openpose \
     --input_motion_length 30 \
     --motion_nfeat 69 \
-    --sparse_dim 69 \
+    --cond_dim 69 \
     --latent_dim 512 \
     --layers 8 \
     --lr 2e-4 \
@@ -114,7 +114,7 @@ python gait_train.py \
     --keypointtype openpose \
     --input_motion_length 30 \
     --motion_nfeat 69 \
-    --sparse_dim 69 \
+    --cond_dim 69 \
     --arch diffusion_DiffMLP \
     --latent_dim 512 \
     --layers 8 \

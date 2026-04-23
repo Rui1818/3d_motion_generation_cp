@@ -128,15 +128,15 @@ def sample(model, diffusion, cond_motion, args, use_sliding_window=False, dct_st
         output_shape = (batch_size, args.input_motion_length, args.motion_nfeat)
         sample_fn = diffusion.p_sample_loop
 
-        sparse_input = cond_motion
+        cond_input = cond_motion
         if args.use_dct:
-            sparse_input = dct(cond_motion)
+            cond_input = dct(cond_motion)
             if dct_stats is not None:
-                sparse_input = _dct_normalize(sparse_input, dct_stats["dct_mean"], dct_stats["dct_std"])
+                cond_input = _dct_normalize(cond_input, dct_stats["dct_mean"], dct_stats["dct_std"])
         generated_motion = sample_fn(
             model,
             output_shape,
-            sparse=sparse_input,
+            sparse=cond_input,
             clip_denoised=False,
             model_kwargs=None,
             skip_timesteps=0,

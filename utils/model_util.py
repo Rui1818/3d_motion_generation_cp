@@ -35,7 +35,7 @@ def get_model_args(args):
         "arch": args.arch,
         "nfeats": args.motion_nfeat,
         "latent_dim": args.latent_dim,
-        "sparse_dim": args.sparse_dim,
+        "cond_dim": args.cond_dim,
         "num_layers": args.layers,
         "dropout": 0.1,
         "cond_mask_prob": args.cond_mask_prob,
