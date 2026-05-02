@@ -205,6 +205,8 @@ def eval_fold(fold_dir, dataset_path, encoder=None, checkpoint_type="latest"):
     # backwards compat: sparse_dim was renamed to cond_dim
     if "cond_dim" not in saved and "sparse_dim" in saved:
         saved["cond_dim"] = saved["sparse_dim"]
+    # backwards compat: lambda_transl added later with default 1.0
+    saved.setdefault("lambda_transl", 1.0)
 
     args = argparse.Namespace(**saved)
     if checkpoint_type == "best":
