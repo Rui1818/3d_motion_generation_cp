@@ -202,6 +202,10 @@ def eval_fold(fold_dir, dataset_path, encoder=None, checkpoint_type="latest"):
     print(f"  Val subjects: {val_subjects}")
 
     # Build a minimal args namespace from the saved config
+    # backwards compat: sparse_dim was renamed to cond_dim
+    if "cond_dim" not in saved and "sparse_dim" in saved:
+        saved["cond_dim"] = saved["sparse_dim"]
+
     args = argparse.Namespace(**saved)
     if checkpoint_type == "best":
         args.model_path = find_best_checkpoint(fold_dir)

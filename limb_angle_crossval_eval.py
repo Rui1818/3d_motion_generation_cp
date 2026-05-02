@@ -61,6 +61,10 @@ def eval_fold_limb_angles(fold_dir, dataset_path, checkpoint_type="latest"):
     val_subjects = saved["val_subjects"]
     print(f"  Val subjects: {val_subjects}")
 
+    # backwards compat: sparse_dim was renamed to cond_dim
+    if "cond_dim" not in saved and "sparse_dim" in saved:
+        saved["cond_dim"] = saved["sparse_dim"]
+
     args = argparse.Namespace(**saved)
     if checkpoint_type == "best":
         args.model_path = find_best_checkpoint(fold_dir)
