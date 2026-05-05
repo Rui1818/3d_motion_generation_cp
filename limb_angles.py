@@ -2,7 +2,7 @@ import numpy as np
 from tslearn.metrics import dtw_path_from_metric
 
 
-def calculate_lower_body_angles(skeletonmotion: np.ndarray) -> dict[str, np.ndarray]:
+def calculate_lower_body_angles(skeletonmotion: np.ndarray):
     """
     Calculate hip, knee, and ankle angles from a skeleton sequence.
 
@@ -59,7 +59,7 @@ def calculate_lower_body_angles(skeletonmotion: np.ndarray) -> dict[str, np.ndar
     return angles
 
 
-def test_from_file(file_path: str) -> dict[str, np.ndarray]:
+def test_from_file(file_path: str):
     """
     Load a skeleton motion from a .npy file and return its lower-body angles.
 
@@ -99,7 +99,7 @@ def _angle_mae(a: np.ndarray, b: np.ndarray) -> float:
 def dtw_angle_error(
     motion_ref: np.ndarray,
     motion_gen: np.ndarray,
-) -> dict[str, float]:
+):
     """
     Compute DTW-aligned mean absolute angle error per limb between two motion sequences.
 

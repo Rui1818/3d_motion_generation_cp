@@ -66,6 +66,7 @@ def eval_fold_limb_angles(fold_dir, dataset_path, checkpoint_type="latest"):
         saved["cond_dim"] = saved["sparse_dim"]
     # backwards compat: lambda_transl added later with default 1.0
     saved.setdefault("lambda_transl", 1.0)
+    saved.setdefault("lambda_rot", 1.0)
 
     args = argparse.Namespace(**saved)
     if checkpoint_type == "best":
