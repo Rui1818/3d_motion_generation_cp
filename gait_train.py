@@ -22,8 +22,6 @@ def train_diffusion_model(args, dataloader, val_dataloader=None, dct_stats=None)
         dir=args.save_dir,
         format_strs=["stdout", "log", "csv", "tensorboard"]
     )
-    args.arch = args.arch[len("diffusion_") :]
-
     num_gpus = torch.cuda.device_count()
     args.num_workers = args.num_workers * num_gpus
     model, diffusion = create_model_and_diffusion(args)

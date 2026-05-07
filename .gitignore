@@ -20,3 +20,4 @@ checkpoints/
 final_training/
 AIT-CP-Dataset-Processing/
 metrics/
+logs/

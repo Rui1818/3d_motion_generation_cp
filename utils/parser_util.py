@@ -120,10 +120,10 @@ def add_model_options(parser):
         "--arch",
         default="DiffMLP",
         type=str,
-        help="Architecture types as reported in the paper.",
+        help="Architecture backbone",
     )
     group.add_argument(
-        "--motion_nfeat", default=72, type=int, help="motion feature dimension"
+        "--motion_nfeat", default=69, type=int, help="noisy motion feature dimension"
     )
     group.add_argument(
         "--cond_dim", default=69, type=int, help="conditioning signal feature dimension"

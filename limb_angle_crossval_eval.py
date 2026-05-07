@@ -20,7 +20,7 @@ from gait_crossval_eval import (
     _sliding_window_start_indices,
 )
 from data_loaders.dataloader3d import TestDataset, load_data, get_dataloader, sample_matching_startframe
-from limb_angles import dtw_angle_error
+from limb_angles import dtw_angle_error, dtw_angle_correlation
 
 NUM_FOLDS = 5
 
@@ -151,6 +151,10 @@ def eval_fold_limb_angles(fold_dir, dataset_path, checkpoint_type="latest"):
                 gen_joints = _to_joints3d(gen_win_3d, args.keypointtype)
                 ref_joints = _to_joints3d(ref_win_3d, args.keypointtype)
                 window_errors.append(dtw_angle_error(ref_joints, gen_joints))
+                window_errors[-1].update({
+                    f"{k}_r": v
+                    for k, v in dtw_angle_correlation(ref_joints, gen_joints).items()
+                })
 
             # Average per-window errors into one sample-level result
             res = {"sample_id": i, "action": action_label}
@@ -174,7 +178,8 @@ def eval_fold_limb_angles(fold_dir, dataset_path, checkpoint_type="latest"):
             ref_joints = _to_joints3d(reference_np, args.keypointtype)
 
             errors = dtw_angle_error(ref_joints, gen_joints)
-            res = {"sample_id": i, "action": action_label, **errors}
+            corrs = {f"{k}_r": v for k, v in dtw_angle_correlation(ref_joints, gen_joints).items()}
+            res = {"sample_id": i, "action": action_label, **errors, **corrs}
 
         fold_results.append(res)
 
@@ -190,14 +195,23 @@ def print_summary(all_results):
         return
 
     skip = {"sample_id", "action"}
-    limbs = [k for k in all_results[0] if k not in skip]
+    all_keys  = [k for k in all_results[0] if k not in skip]
+    mae_keys  = [k for k in all_keys if not k.endswith("_r")]
+    corr_keys = [k for k in all_keys if k.endswith("_r")]
 
-    print("\n=== Limb Angle Error Summary (DTW MAE, degrees) ===")
+    print("\n=== Limb Angle MAE (DTW-aligned, degrees) ===")
     print(f"Total samples: {len(all_results)}")
-    for limb in limbs:
-        vals = [r[limb] for r in all_results if limb in r]
-        print(f"  {limb:<15}: {np.mean(vals):.2f} ± {np.std(vals):.2f}  "
+    for key in mae_keys:
+        vals = [r[key] for r in all_results if key in r]
+        print(f"  {key:<15}: {np.mean(vals):.2f} ± {np.std(vals):.2f}  "
               f"[min={np.min(vals):.2f}, max={np.max(vals):.2f}]")
+
+    if corr_keys:
+        print("\n=== Limb Angle Pearson r (DTW-aligned) ===")
+        for key in corr_keys:
+            vals = [r[key] for r in all_results if key in r]
+            print(f"  {key:<18}: {np.mean(vals):.3f} ± {np.std(vals):.3f}  "
+                  f"[min={np.min(vals):.3f}, max={np.max(vals):.3f}]")
 
     action_labels = sorted(set(r["action"] for r in all_results if "action" in r))
     if action_labels:
@@ -205,10 +219,12 @@ def print_summary(all_results):
         for action in action_labels:
             subset = [r for r in all_results if r.get("action") == action]
             print(f"\n  [Action: {action}]  n={len(subset)}")
-            for limb in limbs:
-                vals = [r[limb] for r in subset if limb in r]
+            for key in mae_keys:
+                vals = [r[key] for r in subset if key in r]
                 if vals:
-                    print(f"    {limb:<15}: {np.mean(vals):.2f} ± {np.std(vals):.2f}")
+                    r_vals = [r[key + "_r"] for r in subset if key + "_r" in r]
+                    r_str = f"  r={np.mean(r_vals):.3f}" if r_vals else ""
+                    print(f"    {key:<15}: {np.mean(vals):.2f} ± {np.std(vals):.2f}{r_str}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────

@@ -75,7 +75,7 @@ python gait_crossval.py \
     --save_dir results/my_experiment \
     --dataset_path final_dataset \
     --dataset gait \
-    --arch diffusion_DiffMLP \
+    --arch DiffMLP \
     --keypointtype openpose \
     --input_motion_length 30 \
     --motion_nfeat 69 \
@@ -97,7 +97,7 @@ Key arguments:
 |---|---|
 | `--keypointtype` | `openpose` (69-dim) or `6d` (135-dim) |
 | `--input_motion_length` | Window size in frames (30, 60, or 240) |
-| `--arch` | `diffusion_DiffMLP` or `diffusion_DiffTransformer` |
+| `--arch` | `DiffMLP` (default) or `DiffTransformer` |
 | `--loss_func` | `mse` or `softdtw` |
 | `--use_dct` | Apply DCT in frequency domain before diffusion |
 | `--lambda_rot_vel` | Weight for rotational velocity auxiliary loss |
@@ -115,7 +115,7 @@ python gait_train.py \
     --input_motion_length 30 \
     --motion_nfeat 69 \
     --cond_dim 69 \
-    --arch diffusion_DiffMLP \
+    --arch DiffMLP \
     --latent_dim 512 \
     --layers 8 \
     --lr 2e-4 \

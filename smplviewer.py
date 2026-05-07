@@ -541,6 +541,5 @@ if __name__ == "__main__":
 
     root="final_dataset"
     condition=os.path.join("final_dataset/gait_983/20251222_c2_a5_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy")
-    #visualize_result("test/weightmlp_rot", condition_path=condition)
-    visualize_gait_batch("final_dataset/gait_753")
+    visualize_result("test/window_rot1", condition_path=condition)
 

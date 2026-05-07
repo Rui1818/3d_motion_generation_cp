@@ -17,9 +17,8 @@ class MetaModel(nn.Module):
         **kargs,
     ):
         super().__init__()
-        #backbone architecture for the diffusion model, currently supports DiffMLP and DiffTransformer
-        self.arch = DiffTransformer
-        #self.arch = DiffMLP
+        _arch_map = {"DiffMLP": DiffMLP, "DiffTransformer": DiffTransformer}
+        self.arch = _arch_map[arch]
 
         self.input_feats = nfeats
         self.latent_dim = latent_dim

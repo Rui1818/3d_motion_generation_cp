@@ -630,6 +630,7 @@ if __name__ == "__main__":
     root="data/dataset"
 
     ### FRAME TRIMMING ###
+    #gaitlist.npy contains the start and end frames for each take that we want to keep, based on visual inspection of the videos and keypoint sequences. We will cut the keypoint sequences and smplx parameters to these frame ranges to remove unwanted frames at the beginning and end of each take.
     gaitfile=np.load("prepare_data/gaitlist.npy", allow_pickle=True).item()
     for gaitname in gaitfile:
         gaitdict=gaitfile[gaitname]

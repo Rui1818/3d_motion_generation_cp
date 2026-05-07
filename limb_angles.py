@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import pearsonr
 from tslearn.metrics import dtw_path_from_metric
 
 
@@ -125,6 +126,41 @@ def dtw_angle_error(
         errors[name] = x / len(path)
 
     return errors
+
+
+def dtw_angle_correlation(
+    motion_ref: np.ndarray,
+    motion_gen: np.ndarray,
+):
+    """
+    Compute DTW-aligned Pearson correlation per limb between two motion sequences.
+
+    Uses the same DTW alignment as dtw_angle_error. The aligned angle pairs are
+    extracted from the warping path and passed to scipy.stats.pearsonr.
+
+    Args:
+        motion_ref: shape (frames_ref, joints, 3)
+        motion_gen: shape (frames_gen, joints, 3)
+
+    Returns:
+        dict mapping limb name -> Pearson r (float in [-1, 1])
+    """
+    angles_ref = calculate_lower_body_angles(motion_ref[..., :3])
+    angles_gen = calculate_lower_body_angles(motion_gen[..., :3])
+
+    correlations = {}
+    for name in angles_ref:
+        ref_seq = angles_ref[name].reshape(-1, 1)
+        gen_seq = angles_gen[name].reshape(-1, 1)
+
+        path, _ = dtw_path_from_metric(ref_seq, gen_seq, metric=_angle_mae)
+        ref_aligned = angles_ref[name][[p[0] for p in path]]
+        gen_aligned = angles_gen[name][[p[1] for p in path]]
+
+        r, _ = pearsonr(ref_aligned, gen_aligned)
+        correlations[name] = float(r)
+
+    return correlations
 
 
 if __name__ == "__main__":
