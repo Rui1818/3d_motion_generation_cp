@@ -29,8 +29,13 @@ Thesis_project/
 ├── gait_crossval_eval.py      # Cross-validation evaluation
 ├── subject_generate.py        # Motion generation file
 ├── train_autoencoder.py       # Train autoencoder for FID computation
-├── data_preprocess.py         # Data preprocessing utilities (rotation, frame trimming)
+├── data_preprocess.py         # Data preprocessing utilities (rotation, frame trimming, window matching)
 ├── plot_crossval_loss.py      # Plot training/validation loss curves
+├── data_preprocessing.docx   # Preprocessing notes and list of excluded takes
+├── prepare_data/
+│   ├── gaitlist.npy               # Per-subject frame trim ranges (update when adding subjects)
+│   ├── match_dict_window30_final.npy  # Sliding-window alignment dict (window=30)
+│   └── match_dict_window60_final.npy  # Sliding-window alignment dict (window=60)
 ├── limb_angles.py             # Lower-body angle computation and DTW-aligned angle metrics
 ├── limb_angle_crossval_eval.py # Cross-validation evaluation of limb angle MAE and Pearson r
 ├── data_loaders/              # Dataloader for the model
@@ -61,7 +66,61 @@ final_dataset/
 ├── gait_02/
 └── ...
 ```
-An example of the file structure can be found in the "example_dataset" folder
+An example of the file structure can be found in the "example_dataset" folder.
+
+---
+
+## Preprocessing
+
+Raw recordings must be preprocessed before training. The full pipeline is implemented in `data_preprocess.py` and covers three stages: **frame trimming**, **orientation correction** (rotation/mirroring), and **window matching**.
+
+### Adding a new subject
+
+When a new subject is added to the dataset, follow these steps in order:
+
+**1. Update `prepare_data/gaitlist.npy`**
+
+`gaitlist.npy` is a nested dictionary that stores the valid frame range `[start, end]` for every take of every subject, based on visual inspection of the videos and keypoint sequences. Frames outside these ranges (e.g. setup artefacts at the start/end of a capture) are discarded.
+
+Load, edit, and re-save the file:
+
+```python
+import numpy as np
+gaitlist = np.load("prepare_data/gaitlist.npy", allow_pickle=True).item()
+
+# Add entries for the new subject
+gaitlist["gait_XXX"] = {
+    "t1":  [start_frame, end_frame],   # take 1
+    "t2":  [start_frame, end_frame],   # take 2
+    # ...
+}
+
+np.save("prepare_data/gaitlist.npy", gaitlist)
+```
+
+Key naming convention: take folders are named `YYYYMMDD_cN_aN_TakeM`; the corresponding `gaitlist` key strips the date prefix and replaces `Take` with `t` (e.g. `c1_a2_t1`).
+
+**2. Update `data_preprocessing.docx`**
+
+Open `data_preprocessing.docx` and record the new subject's takes, noting any takes that are excluded and the reason (e.g. tracking failure, incomplete gait cycle). The last page of the document lists all excluded takes — this list must be kept in sync with the script before running it.
+
+**3. Run the preprocessing script**
+
+```bash
+python data_preprocess.py
+```
+
+This performs in sequence:
+
+| Stage | What it does | Output |
+|---|---|---|
+| Frame trimming | Cuts `smpl-keypoints-3d.npy` and `smplx-params.npz` to the `[start, end]` range in `gaitlist.npy` | `*_cut.npy` / `*_cut.npz` alongside the originals |
+| Rotation (Y+180°) | Corrects takes where the subject walked in the opposite direction | Overwrites the `*_cut` files in-place |
+| Mirroring | Reflects motion across the sagittal plane for takes with reversed left/right orientation | Overwrites the `*_cut` files in-place |
+| Window matching | For each sliding-window position in the condition sequence, finds the best-matching start frame in the target sequence (minimises MSE) | `prepare_data/match_dict_window30_final.npy` and `match_dict_window60_final.npy` |
+
+The rotation and mirroring path lists near the bottom of `data_preprocess.py` must be updated by hand if new takes require correction — inspect the new subject's data in the viewer first.
+
 ---
 
 ## Training
