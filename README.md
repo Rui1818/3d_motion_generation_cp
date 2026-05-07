@@ -31,6 +31,8 @@ Thesis_project/
 ├── train_autoencoder.py       # Train autoencoder for FID computation
 ├── data_preprocess.py         # Data preprocessing utilities (rotation, frame trimming)
 ├── plot_crossval_loss.py      # Plot training/validation loss curves
+├── limb_angles.py             # Lower-body angle computation and DTW-aligned angle metrics
+├── limb_angle_crossval_eval.py # Cross-validation evaluation of limb angle MAE and Pearson r
 ├── data_loaders/              # Dataloader for the model
 ├── diffusion/                 # Diffusion process (DDPM, Gaussian diffusion)
 ├── model/                     # DiffMLP and DiffTransformer architectures
@@ -145,6 +147,37 @@ python gait_crossval_eval.py \
     --num_folds 5 \
     --autoencoder_path checkpoints/best_autoencoder.pt
 ```
+
+### Limb angle cross-validation evaluation
+
+Runs generation on each fold's held-out subjects and computes DTW-aligned limb angle MAE and Pearson correlation per joint (hip, knee, ankle — left and right):
+
+```bash
+python limb_angle_crossval_eval.py \
+    --save_dir results/my_experiment \
+    --dataset_path final_dataset \
+    --num_folds 5 \
+    --checkpoint best
+```
+
+Key arguments:
+
+| Argument | Description |
+|---|---|
+| `--save_dir` | Base cross-validation directory (contains `fold_0/`, `fold_1/`, ...) |
+| `--dataset_path` | Path to dataset root |
+| `--checkpoint` | `best`, `latest`, or `both` |
+
+Per-fold results are saved to `fold_N/limb_angle_metrics.npy`; aggregated results to `crossval_limb_angle_metrics.npy`.
+
+The underlying angle utilities in `limb_angles.py` expose:
+- `calculate_lower_body_angles(skeletonmotion)` — returns per-frame angles (degrees) for each limb
+- `dtw_angle_error(motion_ref, motion_gen)` — DTW-aligned MAE per limb
+- `dtw_angle_correlation(motion_ref, motion_gen)` — DTW-aligned Pearson r per limb
+
+Supports both `openpose` (23 joints) and `6d` / `smpl` (22 joints) representations.
+
+---
 
 ### Single-subject generation
 
