@@ -11,6 +11,7 @@ from aitviewer.viewer import Viewer
 from aitviewer.renderables.point_clouds import PointClouds
 from plyfile import PlyData
 from aitviewer.renderables.skeletons import Skeletons
+from scipy.ndimage import gaussian_filter1d
 
 import torch
 
@@ -532,6 +533,20 @@ def visualize_result(folder_path, condition_path=None):
     add_keypoints_result(cond, v, 'condition', color=color)
     v.run()
 
+def visualize_result2(gen, ref, condition_path):
+    v = Viewer()
+    pathcondition=condition_path
+    cond=np.load(pathcondition)
+    cond=repair_data(cond)
+    cond=subtract_root(cond)
+    gen=subtract_root(np.load(gen))
+    ref=subtract_root(np.load(ref))
+    l=cond.shape[0]
+    gen=gen[:l]
+    add_keypoints_result(gen, v, 'generated', color=(0.8, 0.1, 0.1, 1.0))
+    add_keypoints_result(ref, v, 'reference', color=(0.1, 0.1, 0.8, 1.0))
+    add_keypoints_result(cond, v, 'condition', color=(0.1, 0.7, 0.1, 1.0))
+    v.run()
 
 
 if __name__ == "__main__":
@@ -540,6 +555,38 @@ if __name__ == "__main__":
     C.playback_fps = 30
 
     root="final_dataset"
-    condition=os.path.join("final_dataset/gait_983/20251222_c2_a5_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy")
-    visualize_result("test/window_rot1", condition_path=condition)
+    condition=os.path.join("final_dataset/gait_983/20251222_c2_a1_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy")
+    #visualize_result("test/window_key", condition_path=condition)
 
+    pathlist=[
+        "test/window_key/generated_motion_concat_7.npy",
+        "test/window_key/reference_motion_6.npy",
+        "final_dataset/gait_983/20251222_c2_a2_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"
+        #"final_dataset/gait_983/20251222_c2_a4_Take1/split_subjects\\0\\fit-smplx\\smpl-keypoints-3d_cut.npy"
+        #"final_dataset/gait_983/20251222_c2_a3_Take1/split_subjects\\0\\fit-smplx\\smpl-keypoints-3d_cut.npy" #turn
+        #"final_dataset/gait_983/20251222_c2_a1_Take1/split_subjects\\0\\fit-smplx\\smpl-keypoints-3d_cut.npy"#walk
+        #"final_dataset/gait_983/20251222_c2_a5_Take1/split_subjects\\0\\fit-smplx\\smpl-keypoints-3d_cut.npy"
+    ]
+    visualize_result2(pathlist[0], pathlist[1], pathlist[2])
+
+    """
+    (0.8, 0.1, 0.1, 1.0),  # red, gen
+    (0.1, 0.1, 0.8, 1.0),  # blue, cond
+    (0.1, 0.7, 0.1, 1.0),  # green, ref
+    model="window_rot2"
+    pathlista3=[
+        (['test/' + model + '/generated_motion_concat_12.npy'], (0.8, 0.1, 0.1, 1.0), 'motion_turn_key'),
+        (['test/' + model + '/reference_motion_11.npy'], (0.1, 0.7, 0.1, 1.0), 'motion_turn_key_ref'),
+        (["final_dataset/gait_983/20251222_c2_a3_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"], (0.1, 0.1, 0.8, 1.0), 'motion_turn_key_cond'),
+    ]
+    pathlista4=[
+        (['test/' + model + '/generated_motion_concat_15.npy'], (0.8, 0.1, 0.1, 1.0), 'motion_cross_key'),
+        (['test/' + model + '/reference_motion_14.npy'], (0.1, 0.7, 0.1, 1.0), 'motion_cross_key_ref'),
+        (["final_dataset/gait_983/20251222_c2_a4_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"], (0.1, 0.1, 0.8, 1.0), 'motion_cross_key_cond'),
+    ]
+    pathlista5=[
+        (['test/' + model + '/generated_motion_concat_17.npy'], (0.8, 0.1, 0.1, 1.0), 'motion_pick_key'),
+        (['test/' + model + '/reference_motion_17.npy'], (0.1, 0.7, 0.1, 1.0), 'motion_pick_key_ref'),
+        (["final_dataset/gait_983/20251222_c2_a5_Take1/split_subjects\\0\\keypoints_3d\\smpl-keypoints-3d_cut.npy"], (0.1, 0.1, 0.8, 1.0), 'motion_pick_key_cond'),
+    ]
+    """

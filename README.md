@@ -36,7 +36,7 @@ Thesis_project/
 ├── model/                     # DiffMLP and DiffTransformer architectures
 ├── runner/                    # Training loop
 ├── utils/                     # Metrics, transforms, rotation utils, DCT, Arguments for runner
-└── final_dataset/             # Training/Test data (subject folders)
+└── example_dataset/           # Example dataset folder (subject folders)
 ```
 
 ---
@@ -59,7 +59,7 @@ final_dataset/
 ├── gait_02/
 └── ...
 ```
-
+An example of the file structure can be found in the "example_dataset" folder
 ---
 
 ## Training
@@ -146,15 +146,34 @@ python gait_crossval_eval.py \
     --autoencoder_path checkpoints/best_autoencoder.pt
 ```
 
-### Single-run generation
+### Single-subject generation
+
+Generate motion for a specific subject using a trained model:
 
 ```bash
-python gait_generate.py \
-    <path/to/model.pt> \
-    --output_dir results/generated
+python subject_generate.py \
+    --subject gait_011 \
+    --model_dir results/path_to_model \
+    --dataset_path final_dataset \
+    --checkpoint best \
+    --output_dir results/generated/gait_011
 ```
 
-Metrics computed per sample: MPJPE, PAMPJPE, MPJRE (only for 6d samples), jitter.
+Key arguments:
+
+| Argument | Description |
+|---|---|
+| `--subject` | Subject folder name in the dataset (e.g. `gait_011`) |
+| `--model_dir` | Path to the fold folder containing `args.json` and a checkpoint |
+| `--dataset_path` | Path to the dataset root (default: `final_dataset`) |
+| `--checkpoint` | `best` (uses `best_model.pt`) or `latest` (highest step checkpoint) |
+| `--output_dir` | Output directory (defaults to `<model_dir>/<subject>/`) |
+| `--seed` | Random seed for reproducibility (default: 10) |
+
+Outputs saved to `output_dir`:
+- `reference_motion_{i}.npy` — reference/ground truth motion
+- `generated_motion_{i}.npy` — per-window concatenated output (raw windows)
+- `generated_motion_concat_{i}.npy` — blended/stitched output (combined sliding windows)
 
 ---
 
@@ -179,13 +198,11 @@ FID is computed automatically during cross-validation evaluation. Pass `--autoen
 
 ## Visualization
 
-Two interactive viewers are provided (require [aitviewer](https://github.com/eth-siplab/AitViewer)):
+An interactive viewer is also provided (require [aitviewer](https://github.com/eth-siplab/AitViewer)):
 
 ```bash
-# View generated skeleton motions
-python generationviewer.py
 
-# View SMPL-X body model
+# View SMPL-X body model, adjust path in the file to view
 python smplviewer.py
 ```
 
